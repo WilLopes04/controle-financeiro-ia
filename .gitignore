@@ -1,0 +1,13 @@
+```gitignore
+venv/
+__pycache__/
+*.pyc
+server.log
+.env
+backups/
+logs/
+Financeiro_Empresa.xlsx
+Financeiro_Pessoal.xlsx
+financeiro.db
+TOKEN USUARIO WHATSAPP e GPT.txt
+```
