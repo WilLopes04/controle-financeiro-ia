@@ -16,12 +16,14 @@ ARQUIVO_EMPRESA = os.path.join(BASE_DIR, "Financeiro_Empresa.xlsx")
 ARQUIVO_PESSOAL = os.path.join(BASE_DIR, "Financeiro_Pessoal.xlsx")
 
 print("BANCO USADO:", DB_NAME)
+def get_connection():
+    return sqlite3.connect(DB_NAME)
 # =========================
 # CRIAR TABELAS
 # =========================
 
 def criar_tabelas():
-    conn = sqlite3.connect(DB_NAME)
+    conn = get_connection()
     cursor = conn.cursor()
 	
     cursor.execute("""
@@ -79,7 +81,7 @@ CREATE TABLE IF NOT EXISTS regras (
 # =========================
 
 def calcular_mes_fatura(data_compra, nome_cartao):
-    conn = sqlite3.connect(DB_NAME)
+    conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute(
@@ -115,7 +117,7 @@ def registrar_transacao(
     total_parcelas=1,
     id_compra=None
 ):
-    conn = sqlite3.connect(DB_NAME)
+    conn = get_connection()
     cursor = conn.cursor()
 
     if data is None:
@@ -159,7 +161,7 @@ def registrar_parcelado(
     valor_parcela = valor_total / total_parcelas
     data_base = datetime.now()
 
-    conn = sqlite3.connect(DB_NAME)
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT nome FROM cartoes")
     cartoes_validos = [c[0] for c in cursor.fetchall()]
@@ -191,7 +193,7 @@ def registrar_parcelado(
 # =========================
 
 def gerar_planilha():
-    conn = sqlite3.connect(DB_NAME)
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM transacoes")
     dados = cursor.fetchall()
@@ -349,7 +351,7 @@ def gerar_planilha():
 # =========================
 
 def total_entradas(tipo_conta):
-    conn = sqlite3.connect(DB_NAME)
+    conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -364,7 +366,7 @@ def total_entradas(tipo_conta):
 
 
 def total_saidas(tipo_conta):
-    conn = sqlite3.connect(DB_NAME)
+    conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -383,7 +385,7 @@ def calcular_saldo(tipo_conta):
 
 
 def fatura_cartao(nome_cartao, tipo_conta):
-    conn = sqlite3.connect(DB_NAME)
+    conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -403,7 +405,7 @@ def fatura_cartao(nome_cartao, tipo_conta):
 # =========================
 
 def calcular_saldo(tipo_conta):
-    conn = sqlite3.connect(DB_NAME)
+    conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -426,7 +428,7 @@ def calcular_saldo(tipo_conta):
     return saldo
 
 def listar_regras():
-    conn = sqlite3.connect(DB_NAME)
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT padrao, tipo_conta, categoria FROM regras ORDER BY padrao")
     rows = cursor.fetchall()
@@ -438,7 +440,7 @@ def salvar_regra(padrao: str, tipo_conta: str, categoria: str = None):
     tipo_conta = (tipo_conta or "").strip().lower()
     categoria = (categoria or "").strip().lower() if categoria else None
 
-    conn = sqlite3.connect(DB_NAME)
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("""
         INSERT INTO regras (padrao, tipo_conta, categoria)
