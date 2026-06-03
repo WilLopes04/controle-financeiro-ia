@@ -13,7 +13,7 @@ google_creds = json.loads(
 )
 
 creds = Credentials.from_service_account_file(
-    "credentials.json",
+    google_creds,
     scopes=SCOPES
 )
 
