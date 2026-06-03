@@ -10,4 +10,9 @@ Financeiro_Empresa.xlsx
 Financeiro_Pessoal.xlsx
 financeiro.db
 TOKEN USUARIO WHATSAPP e GPT.txt
+credentials.json
+.wrangler/
+teste_*.py
+__pycache__/
+venv/
 ```

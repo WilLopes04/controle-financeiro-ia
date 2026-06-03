@@ -1,100 +1,68 @@
-import sqlite3
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 import uuid
 import os
+import psycopg2
 from openpyxl import Workbook
 from openpyxl.worksheet.table import Table, TableStyleInfo
 from collections import defaultdict
+from dotenv import load_dotenv
+from libsql_client import create_client_sync
+from app.google_sheets import (
+    atualizar_aba,
+    atualizar_resumo_categoria,
+    atualizar_resumo_cartao,
+    SHEET_EMPRESA_ID,
+    SHEET_PESSOAL_ID
+)
+
+
+load_dotenv()
+
+TURSO_DATABASE_URL = (
+    os.getenv("TURSO_DATABASE_URL")
+    .replace("libsql://", "https://")
+)
+
+TURSO_AUTH_TOKEN = os.getenv("TURSO_AUTH_TOKEN")
+
+db = create_client_sync(
+    url=TURSO_DATABASE_URL,
+    auth_token=TURSO_AUTH_TOKEN
+)
 
 # Caminho fixo da pasta do projeto: D:\ControleFinanceiro
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
-DB_NAME = os.path.join(BASE_DIR, "financeiro.db")
+
+DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 
 ARQUIVO_EMPRESA = os.path.join(BASE_DIR, "Financeiro_Empresa.xlsx")
 ARQUIVO_PESSOAL = os.path.join(BASE_DIR, "Financeiro_Pessoal.xlsx")
 
-print("BANCO USADO:", DB_NAME)
-def get_connection():
-    return sqlite3.connect(DB_NAME)
+
+
+
 # =========================
 # CRIAR TABELAS
 # =========================
 
-def criar_tabelas():
-    conn = get_connection()
-    cursor = conn.cursor()
-	
-    cursor.execute("""
-CREATE TABLE IF NOT EXISTS regras (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    padrao TEXT UNIQUE,
-    tipo_conta TEXT,
-    categoria TEXT
-)
-""")
-
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS transacoes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        data TEXT,
-        tipo_conta TEXT,
-        tipo_movimento TEXT,
-        categoria TEXT,
-        forma_pagamento TEXT,
-        descricao TEXT,
-        valor REAL,
-        parcela_atual INTEGER,
-        total_parcelas INTEGER,
-        id_compra TEXT
-    )
-    """)
-
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS cartoes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nome TEXT,
-        dia_vencimento INTEGER,
-        dia_fechamento INTEGER
-    )
-    """)
-
-    # Inserir cartões padrão se vazio
-    cursor.execute("SELECT COUNT(*) FROM cartoes")
-    if cursor.fetchone()[0] == 0:
-        cartoes = [
-            ("Santander", 30, 23),
-            ("MercadoPago", 20, 13),
-            ("Latam", 20, 13)
-        ]
-        cursor.executemany(
-            "INSERT INTO cartoes (nome, dia_vencimento, dia_fechamento) VALUES (?, ?, ?)",
-            cartoes
-        )
-
-    conn.commit()
-    conn.close()
 
 # =========================
 # CALCULAR MÊS DA FATURA
 # =========================
 
 def calcular_mes_fatura(data_compra, nome_cartao):
-    conn = get_connection()
-    cursor = conn.cursor()
 
-    cursor.execute(
+    resultado = db.execute(
         "SELECT dia_fechamento FROM cartoes WHERE nome = ?",
-        (nome_cartao,)
-    )
-    resultado = cursor.fetchone()
-    conn.close()
+        [nome_cartao]
+    ).rows
 
     if not resultado:
         return data_compra
 
-    dia_fechamento = resultado[0]
+    dia_fechamento = resultado[0][0]
 
     if data_compra.day > dia_fechamento:
         return data_compra + relativedelta(months=1)
@@ -104,6 +72,9 @@ def calcular_mes_fatura(data_compra, nome_cartao):
 # =========================
 # REGISTRAR TRANSAÇÃO
 # =========================
+
+def atualizar_mes(nome_mes):
+    gerar_planilha(nome_mes)
 
 def registrar_transacao(
     tipo_conta,
@@ -117,8 +88,6 @@ def registrar_transacao(
     total_parcelas=1,
     id_compra=None
 ):
-    conn = get_connection()
-    cursor = conn.cursor()
 
     if data is None:
         data = datetime.now().strftime("%Y-%m-%d")
@@ -126,24 +95,51 @@ def registrar_transacao(
     if id_compra is None:
         id_compra = str(uuid.uuid4())
 
-    cursor.execute("""
+    db.execute("""
         INSERT INTO transacoes (
-            data, tipo_conta, tipo_movimento,
-            categoria, forma_pagamento,
-            descricao, valor,
-            parcela_atual, total_parcelas, id_compra
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        data, tipo_conta, tipo_movimento,
-        categoria, forma_pagamento,
-        descricao, valor,
-        parcela_atual, total_parcelas, id_compra
-    ))
+            data,
+            tipo_conta,
+            tipo_movimento,
+            categoria,
+            forma_pagamento,
+            descricao,
+            valor,
+            parcela_atual,
+            total_parcelas,
+            id_compra
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, [
+        data,
+        tipo_conta,
+        tipo_movimento,
+        categoria,
+        forma_pagamento,
+        descricao,
+        valor,
+        parcela_atual,
+        total_parcelas,
+        id_compra
+    ])
 
-    conn.commit()
-    conn.close()
+    mes = datetime.strptime(data, "%Y-%m-%d").month
 
-    gerar_planilha()
+    meses = {
+        1: "Janeiro",
+        2: "Fevereiro",
+        3: "Março",
+        4: "Abril",
+        5: "Maio",
+        6: "Junho",
+        7: "Julho",
+        8: "Agosto",
+        9: "Setembro",
+        10: "Outubro",
+        11: "Novembro",
+        12: "Dezembro"
+   }
+
+    atualizar_mes(meses[mes]) 
 
 # =========================
 # REGISTRAR PARCELADO
@@ -161,11 +157,8 @@ def registrar_parcelado(
     valor_parcela = valor_total / total_parcelas
     data_base = datetime.now()
 
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT nome FROM cartoes")
-    cartoes_validos = [c[0] for c in cursor.fetchall()]
-    conn.close()
+    resultado = db.execute("SELECT nome FROM cartoes")
+    cartoes_validos = [linha[0] for linha in resultado.rows]
 
     if forma_pagamento in cartoes_validos:
         data_base = calcular_mes_fatura(data_base, forma_pagamento)
@@ -183,7 +176,7 @@ def registrar_parcelado(
             f"{descricao} ({i+1}/{total_parcelas})",
             valor_parcela,
             nova_data.strftime("%Y-%m-%d"),
-            i+1,
+            i + 1,
             total_parcelas,
             id_compra
         )
@@ -192,12 +185,12 @@ def registrar_parcelado(
 # GERAR PLANILHAS
 # =========================
 
-def gerar_planilha():
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM transacoes")
-    dados = cursor.fetchall()
-    conn.close()
+
+
+def gerar_planilha(mes_especifico=None):
+
+    resultado = db.execute("SELECT * FROM transacoes")
+    dados = resultado.rows
 
     meses = {
         1: "Janeiro", 2: "Fevereiro", 3: "Março",
@@ -213,8 +206,14 @@ def gerar_planilha():
 
     for num_mes, nome_mes in meses.items():
 
+        if mes_especifico and nome_mes != mes_especifico:
+            continue
+
+        dados_google_emp_linhas = []
+        dados_google_pes_linhas = []	
         ws_emp = wb_empresa.create_sheet(nome_mes)
         ws_pes = wb_pessoal.create_sheet(nome_mes)
+
 
         cabecalho = [
             "Data", "Tipo Movimento", "Categoria",
@@ -260,6 +259,7 @@ def gerar_planilha():
 
                 if tipo_conta == "empresa":
                     ws_emp.append(linha_excel)
+                    dados_google_emp_linhas.append(linha_excel)
 
                     if tipo_movimento == "entrada":
                         entradas_emp += valor
@@ -270,6 +270,7 @@ def gerar_planilha():
 
                 else:
                     ws_pes.append(linha_excel)
+                    dados_google_pes_linhas.append(linha_excel)
 
                     if tipo_movimento == "entrada":
                         entradas_pes += valor
@@ -287,7 +288,68 @@ def gerar_planilha():
         ws_pes["B2"] = saidas_pes
         ws_pes["B3"] = entradas_pes - saidas_pes
 
-        # ===== Criar Tabela com Filtro =====
+        dados_google_emp = [
+            ["Total Entradas:", entradas_emp],
+            ["Total Saídas:", saidas_emp],
+            ["Saldo:", entradas_emp - saidas_emp],
+            [],
+            cabecalho
+        ] + dados_google_emp_linhas
+
+        dados_google_pes = [
+            ["Total Entradas:", entradas_pes],
+            ["Total Saídas:", saidas_pes],
+            ["Saldo:", entradas_pes - saidas_pes],
+            [],
+            cabecalho
+        ] + dados_google_pes_linhas
+
+# ===== RESUMOS GOOGLE EMPRESA =====
+
+        resumo_categoria_emp_google = [
+            ["Resumo por Categoria"],
+            ["Categoria", "Total"]
+        ]
+
+        for categoria, total in resumo_categoria_emp.items():
+            resumo_categoria_emp_google.append(
+            [categoria, total]
+        )
+
+        resumo_cartao_emp_google = [
+            ["Resumo por Cartão"],
+            ["Cartão", "Total Fatura"]
+        ]
+
+        for cartao, total in resumo_cartao_emp.items():
+            resumo_cartao_emp_google.append(
+            [cartao, total]
+        )
+
+# ===== RESUMOS GOOGLE PESSOAL =====
+
+        resumo_categoria_pes_google = [
+            ["Resumo por Categoria"],
+            ["Categoria", "Total"]
+        ]
+
+        for categoria, total in resumo_categoria_pes.items():
+            resumo_categoria_pes_google.append(
+            [categoria, total]
+        )
+
+        resumo_cartao_pes_google = [
+            ["Resumo por Cartão"],
+            ["Cartão", "Total Fatura"]
+        ]
+
+        for cartao, total in resumo_cartao_pes.items():
+            resumo_cartao_pes_google.append(
+            [cartao, total]
+        )
+   
+
+         # ===== Criar Tabela com Filtro =====
         for ws in [ws_emp, ws_pes]:
             if ws.max_row > 5:
                 tabela = Table(
@@ -343,41 +405,70 @@ def gerar_planilha():
             ws_pes[f"N{linha_res}"] = total
             linha_res += 1
 
+        # ===== ENVIA PARA GOOGLE SHEETS =====
+
+        atualizar_aba(
+            SHEET_EMPRESA_ID,
+            nome_mes.upper(),
+            dados_google_emp
+        )
+
+        atualizar_aba(
+            SHEET_PESSOAL_ID,
+            nome_mes.upper(),
+            dados_google_pes
+        )
+
+        atualizar_resumo_categoria(
+            SHEET_EMPRESA_ID,
+            nome_mes.upper(),
+            resumo_categoria_emp_google
+        )
+
+        atualizar_resumo_cartao(
+            SHEET_EMPRESA_ID,
+            nome_mes.upper(),
+            resumo_cartao_emp_google
+        )
+
+        atualizar_resumo_categoria(
+            SHEET_PESSOAL_ID,
+            nome_mes.upper(),
+            resumo_categoria_pes_google
+        )
+
+        atualizar_resumo_cartao(
+            SHEET_PESSOAL_ID,
+            nome_mes.upper(),
+            resumo_cartao_pes_google
+        )
+
     wb_empresa.save(ARQUIVO_EMPRESA)
     wb_pessoal.save(ARQUIVO_PESSOAL)
-
 # =========================
 # CONSULTAS (NOVO)
 # =========================
 
 def total_entradas(tipo_conta):
-    conn = get_connection()
-    cursor = conn.cursor()
 
-    cursor.execute("""
+    resultado = db.execute("""
         SELECT COALESCE(SUM(valor),0)
         FROM transacoes
         WHERE tipo_conta=? AND tipo_movimento='entrada'
-    """, (tipo_conta,))
+    """, [tipo_conta]).rows
 
-    total = cursor.fetchone()[0]
-    conn.close()
-    return total
+    return resultado[0][0]
 
 
 def total_saidas(tipo_conta):
-    conn = get_connection()
-    cursor = conn.cursor()
 
-    cursor.execute("""
+    resultado = db.execute("""
         SELECT COALESCE(SUM(valor),0)
         FROM transacoes
         WHERE tipo_conta=? AND tipo_movimento='saida'
-    """, (tipo_conta,))
+    """, [tipo_conta]).rows
 
-    total = cursor.fetchone()[0]
-    conn.close()
-    return total
+    return resultado[0][0]
 
 
 def calcular_saldo(tipo_conta):
@@ -385,37 +476,31 @@ def calcular_saldo(tipo_conta):
 
 
 def fatura_cartao(nome_cartao, tipo_conta):
-    conn = get_connection()
-    cursor = conn.cursor()
 
-    cursor.execute("""
+    resultado = db.execute("""
         SELECT COALESCE(SUM(valor),0)
         FROM transacoes
         WHERE tipo_conta=?
         AND tipo_movimento='saida'
         AND forma_pagamento=?
-    """, (tipo_conta, nome_cartao))
+    """, [
+        tipo_conta,
+        nome_cartao
+    ]).rows
 
-    total = cursor.fetchone()[0]
-    conn.close()
-    return total
+    return resultado[0][0]
 
 # =========================
 # CALCULAR SALDO
 # =========================
 
 def calcular_saldo(tipo_conta):
-    conn = get_connection()
-    cursor = conn.cursor()
 
-    cursor.execute("""
+    registros = db.execute("""
         SELECT tipo_movimento, valor
         FROM transacoes
         WHERE LOWER(tipo_conta) = LOWER(?)
-    """, (tipo_conta,))
-
-    registros = cursor.fetchall()
-    conn.close()
+    """, [tipo_conta]).rows
 
     saldo = 0
 
@@ -428,30 +513,32 @@ def calcular_saldo(tipo_conta):
     return saldo
 
 def listar_regras():
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT padrao, tipo_conta, categoria FROM regras ORDER BY padrao")
-    rows = cursor.fetchall()
-    conn.close()
+
+    rows = db.execute("""
+        SELECT padrao, tipo_conta, categoria
+        FROM regras
+        ORDER BY padrao
+    """).rows
+
     return rows
 
 def salvar_regra(padrao: str, tipo_conta: str, categoria: str = None):
+
     padrao = (padrao or "").strip().lower()
     tipo_conta = (tipo_conta or "").strip().lower()
     categoria = (categoria or "").strip().lower() if categoria else None
 
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
+    db.execute("""
         INSERT INTO regras (padrao, tipo_conta, categoria)
         VALUES (?, ?, ?)
         ON CONFLICT(padrao) DO UPDATE SET
             tipo_conta=excluded.tipo_conta,
             categoria=excluded.categoria
-    """, (padrao, tipo_conta, categoria))
-    conn.commit()
-    conn.close()
-
+    """, [
+        padrao,
+        tipo_conta,
+        categoria
+    ])
 def aplicar_regras(texto: str):
     t = (texto or "").lower()
     regras = listar_regras()
@@ -462,5 +549,53 @@ def aplicar_regras(texto: str):
             if categoria:
                 out["categoria"] = categoria
             return out
+
+def registrar_transacao_turso(
+    tipo_conta,
+    tipo_movimento,
+    categoria,
+    forma_pagamento,
+    descricao,
+    valor,
+    data=None,
+    parcela_atual=1,
+    total_parcelas=1,
+    id_compra=None
+):
+
+    if data is None:
+        data = datetime.now().strftime("%Y-%m-%d")
+
+    if id_compra is None:
+        id_compra = str(uuid.uuid4())
+
+    db.execute("""
+        INSERT INTO transacoes (
+            data,
+            tipo_conta,
+            tipo_movimento,
+            categoria,
+            forma_pagamento,
+            descricao,
+            valor,
+            parcela_atual,
+            total_parcelas,
+            id_compra
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, [
+        data,
+        tipo_conta,
+        tipo_movimento,
+        categoria,
+        forma_pagamento,
+        descricao,
+        valor,
+        parcela_atual,
+        total_parcelas,
+        id_compra
+    ])
+
+    print("Transação gravada no Turso")
 
     return {}

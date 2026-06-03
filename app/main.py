@@ -62,6 +62,19 @@ except Exception:
 
 app = FastAPI()
 
+@app.get("/teste-registro")
+def teste_registro():
+    registrar_transacao(
+        tipo_conta="empresa",
+        tipo_movimento="saida",
+        categoria="Teste",
+        forma_pagamento="Pix",
+        descricao="Teste DEV",
+        valor=1.99
+    )
+
+    return {"status": "ok"}
+
 # Criar tabelas ao iniciar
 criar_tabelas()
 
