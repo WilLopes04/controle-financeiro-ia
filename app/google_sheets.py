@@ -9,7 +9,7 @@ SCOPES = [
 ]
 
 google_creds = json.loads(
-    os.environ[GOOGLE_CREDENTIALS_JSON] 
+    os.environ["GOOGLE_CREDENTIALS_JSON"] 
 )
 
 creds = Credentials.from_service_account_file(
