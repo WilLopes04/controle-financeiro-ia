@@ -13,7 +13,6 @@ from dotenv import load_dotenv
 from openai import OpenAI
 load_dotenv()
 from app.database import (
-    criar_tabelas,
     registrar_transacao,
     registrar_parcelado,
     calcular_saldo,
@@ -76,7 +75,6 @@ def teste_registro():
     return {"status": "ok"}
 
 # Criar tabelas ao iniciar
-criar_tabelas()
 
 # =========================
 # CONFIG WHATSAPP
