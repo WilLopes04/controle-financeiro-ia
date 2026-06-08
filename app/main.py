@@ -412,7 +412,18 @@ async def receive_webhook(request: Request):
 
         msg_obj = changes["messages"][0]
         message_id = msg_obj.get("id")
-        log("MESSAGE_ID",message_id)
+        log(f"MESSAGE_ID {message_id}")
+
+        # Evita processar a mesma mensagem mais de uma vez
+        if not hasattr(receive_webhook, "ids_processados"):
+            receive_webhook.ids_processados = set()
+
+        if message_id in receive_webhook.ids_processados:
+            log(f"MENSAGEM DUPLICADA IGNORADA: {message_id}")
+            return {"status": "ok"}
+
+        receive_webhook.ids_processados.add(message_id)
+
         from_number = msg_obj.get("from", "")
 
         msg_type = msg_obj.get("type", "")
