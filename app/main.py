@@ -411,6 +411,8 @@ async def receive_webhook(request: Request):
             return {"status": "ok"}
 
         msg_obj = changes["messages"][0]
+        message_id = msg_obj.get("id")
+        log("MESSAGE_ID",message_id)
         from_number = msg_obj.get("from", "")
 
         msg_type = msg_obj.get("type", "")
