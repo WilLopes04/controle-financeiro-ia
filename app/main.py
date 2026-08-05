@@ -12,9 +12,11 @@ APP_VERSION = "MAIN_ATUAL_2026_03_05_v1"
 from dotenv import load_dotenv
 from openai import OpenAI
 load_dotenv()
-from app.database import (
+from app.finance import (
     registrar_transacao,
-    registrar_parcelado,
+    registrar_parcelado
+)
+from app.queries import (
     calcular_saldo,
     fatura_cartao
 )
@@ -51,7 +53,7 @@ def log(*args):
 # Regras/memória (se não existirem, não quebra)
 # ==========================================
 try:
-    from app.database import aplicar_regras, salvar_regra, listar_regras
+    from app.rules import aplicar_regras, salvar_regra, listar_regras
     REGRAS_HABILITADAS = True
 except Exception:
     aplicar_regras = None
