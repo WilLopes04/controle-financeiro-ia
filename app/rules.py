@@ -10,11 +10,13 @@ def listar_regras():
 
     return rows
 
+
 def salvar_regra(padrao: str, tipo_conta: str, categoria: str = None):
 
     padrao = (padrao or "").strip().lower()
     tipo_conta = (tipo_conta or "").strip().lower()
     categoria = (categoria or "").strip().lower() if categoria else None
+
 
     db.execute("""
         INSERT INTO regras (padrao, tipo_conta, categoria)
@@ -27,6 +29,8 @@ def salvar_regra(padrao: str, tipo_conta: str, categoria: str = None):
         tipo_conta,
         categoria
     ])
+
+
 def aplicar_regras(texto: str):
     t = (texto or "").lower()
     regras = listar_regras()

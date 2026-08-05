@@ -3,13 +3,14 @@ from dateutil.relativedelta import relativedelta
 from collections import defaultdict
 
 from app.db import db
-from app.google_sheets import(
+from app.google_sheets import (
     atualizar_aba,
     atualizar_resumo_categoria,
     atualizar_resumo_cartao,
     SHEET_EMPRESA_ID,
     SHEET_PESSOAL_ID
 )
+
 
 def calcular_mes_fatura(data_compra, nome_cartao):
 
@@ -27,6 +28,7 @@ def calcular_mes_fatura(data_compra, nome_cartao):
         return data_compra + relativedelta(months=1)
 
     return data_compra
+
 
 def gerar_planilha(mes_especifico=None):
 

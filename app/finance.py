@@ -1,5 +1,5 @@
 from datetime import datetime
-from dateutil.realativedelta import relativedelta
+from dateutil.relativedelta import relativedelta
 import uuid
 
 from app.db import db

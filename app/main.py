@@ -1,14 +1,13 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse
-from pydantic import BaseModel
 import os
 import requests
 import json
 import traceback
 import io
-import sys
 
-APP_VERSION = "MAIN_ATUAL_2026_03_05_v1"
+
+APP_VERSION = "MAIN_ATUAL_2026.08.05"
 from dotenv import load_dotenv
 from openai import OpenAI
 load_dotenv()
@@ -21,22 +20,7 @@ from app.queries import (
     fatura_cartao
 )
 
-# ==========================================
-# FIX: Evitar crash por encoding (Agendador)
-# ==========================================
-def _configure_stdio_utf8():
-    """
-    Quando roda pelo Agendador, o stdout/stderr pode ser cp1252.
-    Isso quebra com emoji/acentos no print e derruba o webhook.
-    """
-    try:
-        # Python 3.7+ (no seu caso é 3.14)
-        sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
-        sys.stderr.reconfigure(encoding="utf-8", errors="backslashreplace")
-    except Exception:
-        pass
 
-_configure_stdio_utf8()
 
 def log(*args):
     """
@@ -52,31 +36,13 @@ def log(*args):
 # ==========================================
 # Regras/memória (se não existirem, não quebra)
 # ==========================================
-try:
-    from app.rules import aplicar_regras, salvar_regra, listar_regras
-    REGRAS_HABILITADAS = True
-except Exception:
-    aplicar_regras = None
-    salvar_regra = None
-    listar_regras = None
-    REGRAS_HABILITADAS = False
+from app.rules import aplicar_regras, salvar_regra, listar_regras
+
+REGRAS_HABILITADAS = True
 
 app = FastAPI()
 
-@app.get("/teste-registro")
-def teste_registro():
-    registrar_transacao(
-        tipo_conta="empresa",
-        tipo_movimento="saida",
-        categoria="Teste",
-        forma_pagamento="Pix",
-        descricao="Teste DEV",
-        valor=1.99
-    )
 
-    return {"status": "ok"}
-
-# Criar tabelas ao iniciar
 
 # =========================
 # CONFIG WHATSAPP
@@ -91,26 +57,6 @@ WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN", "").strip()
 # =========================
 CARTOES_VALIDOS = ["Santander", "MercadoPago", "Latam"]
 
-# =========================
-# MODELS (Swagger)
-# =========================
-class Transacao(BaseModel):
-    tipo_conta: str
-    tipo_movimento: str
-    categoria: str
-    forma_pagamento: str
-    descricao: str
-    valor: float
-
-
-class TransacaoParcelada(BaseModel):
-    tipo_conta: str
-    tipo_movimento: str
-    categoria: str
-    forma_pagamento: str
-    descricao: str
-    valor_total: float
-    total_parcelas: int
 
 
 # =========================
@@ -120,44 +66,6 @@ class TransacaoParcelada(BaseModel):
 def home():
     return {"status": "Servidor financeiro rodando"}
 
-
-@app.post("/registrar")
-def registrar(transacao: Transacao):
-    registrar_transacao(
-        transacao.tipo_conta,
-        transacao.tipo_movimento,
-        transacao.categoria,
-        transacao.forma_pagamento,
-        transacao.descricao,
-        transacao.valor
-    )
-    return {"status": "Transação registrada com sucesso"}
-
-
-@app.post("/registrar-parcelado")
-def registrar_parcela(transacao: TransacaoParcelada):
-    registrar_parcelado(
-        transacao.tipo_conta,
-        transacao.tipo_movimento,
-        transacao.categoria,
-        transacao.forma_pagamento,
-        transacao.descricao,
-        transacao.valor_total,
-        transacao.total_parcelas
-    )
-    return {"status": "Compra parcelada registrada com sucesso"}
-
-
-@app.get("/saldo/{tipo_conta}")
-def ver_saldo(tipo_conta: str):
-    saldo = calcular_saldo(tipo_conta)
-    return {"tipo_conta": tipo_conta, "saldo": saldo}
-
-
-@app.get("/fatura/{tipo_conta}/{cartao}")
-def consultar_fatura(tipo_conta: str, cartao: str):
-    total = fatura_cartao(cartao, tipo_conta.lower())
-    return {"tipo_conta": tipo_conta, "cartao": cartao, "total_fatura": total}
 
 
 # =========================
@@ -303,15 +211,17 @@ def interpretar_com_ia(texto: str) -> dict:
         client = OpenAI(api_key=api_key)
 
         regras_txt = ""
-        if REGRAS_HABILITADAS and listar_regras:
-            try:
-                regras = listar_regras()
-                if regras:
-                    regras_txt = "Regras salvas (priorize quando bater):\n" + "\n".join(
-                        [f"- '{p}' -> {tc} ({cat or 'sem categoria'})" for (p, tc, cat) in regras]
-                    )
-            except Exception:
-                regras_txt = ""
+        
+        try:
+            regras = listar_regras()
+
+            if regras:
+                regras_txt = "Regras salvas (priorize quando bater):\n" + "\n".join(
+                    [f"- '{p}' -> {tc} ({cat or 'sem categoria'})" for (p, tc, cat) in regras]
+                )
+        except Exception as e:
+            log("Erro ao carregar regras:", str(e))
+            regras_txt = ""
 
         contexto_empresa = """
 Contexto fixo:
@@ -406,25 +316,43 @@ async def receive_webhook(request: Request):
     log("Webhook recebido")
 
     try:
-        entry = data.get("entry", [])[0]
-        changes = entry.get("changes", [])[0].get("value", {})
+        entries = data.get("entry", [])
 
-        if "messages" not in changes:
+        if not entries:
             return {"status": "ok"}
 
-        msg_obj = changes["messages"][0]
+        changes_list = entries[0].get("changes",[])
+        
+
+        if not changes_list:
+            return {"status": "ok"}
+
+        changes = changes_list[0].get("value",[])
+        
+        messages = changes.get("messages",[])
+
+        if not messages:
+            return {"status": "ok"}
+
+        msg_obj = messages[0]
+
         message_id = msg_obj.get("id")
+
         log(f"MESSAGE_ID {message_id}")
 
         # Evita processar a mesma mensagem mais de uma vez
-        if not hasattr(receive_webhook, "ids_processados"):
-            receive_webhook.ids_processados = set()
+        if message_id:
+            if not hasattr(receive_webhook, "ids_processados"):
+                receive_webhook.ids_processados = set()
 
-        if message_id in receive_webhook.ids_processados:
-            log(f"MENSAGEM DUPLICADA IGNORADA: {message_id}")
-            return {"status": "ok"}
+            if message_id in receive_webhook.ids_processados:
+                log(f"MENSAGEM DUPLICADA IGNORADA: {message_id}")
+                return {"status": "ok"}
 
-        receive_webhook.ids_processados.add(message_id)
+            receive_webhook.ids_processados.add(message_id)
+
+            if len(receive_webhook.ids_processados) > 5000:
+                receive_webhook.ids_processados.clear()
 
         from_number = msg_obj.get("from", "")
 
@@ -537,9 +465,7 @@ async def receive_webhook(request: Request):
             enviar_whatsapp(from_number, f"❌ {params.get('mensagem','Erro ao processar IA')}")
 
         else:
-            extra = ""
-            if not REGRAS_HABILITADAS:
-                extra = "\n\n⚠️ Dica: para ativar aprendizado por rotina, adicione as funções de regras no database.py."
+            
 
             enviar_whatsapp(
                 from_number,
@@ -550,7 +476,7 @@ async def receive_webhook(request: Request):
                 "• saldo empresa\n"
                 "• fatura empresa santander\n"
                 "• aprender: costureira = empresa / mao_de_obra"
-                + extra
+                
             )
 
     except Exception as e:
