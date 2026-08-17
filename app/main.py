@@ -439,6 +439,13 @@ async def receive_webhook(request: Request):
             enviar_whatsapp(from_number, f"💳 Fatura {cartao} ({tipo}): R$ {total:.2f}")
 
         elif acao == "registrar_parcelado":
+
+            valor_total = params.get("valor_total", params.get("valor", 0))
+            total_parcelas = params.get(
+                "total_parcelas",
+                params.get("parcelas", 1)
+            )
+
             registrar_parcelado(
                 (params.get("tipo_conta") or "empresa").lower(),
                 (params.get("tipo_movimento") or "saida").lower(),
