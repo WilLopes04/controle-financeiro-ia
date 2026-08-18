@@ -456,8 +456,8 @@ async def receive_webhook(request: Request):
                 params.get("categoria", "outros"),
                 params.get("forma_pagamento", "pix"),
                 params.get("descricao", "Compra parcelada"),
-                float(str(params.get("valor_total", 0)).replace(",", ".")),
-                int(params.get("total_parcelas", 1)),
+                float(str(valor_total).replace(",", ".")),
+                int(total_parcelas),
             )
             enviar_whatsapp(from_number, "✅ Compra parcelada registrada e planilha atualizada!")
 
