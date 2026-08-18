@@ -30,15 +30,6 @@ def registrar_transacao(
     if id_compra is None:
         id_compra = str(uuid.uuid4())
 
-    print(
-        "DEBUG INSERT:",
-        "data=", data,
-        "valor=", valor,
-        "parcela_atual=", parcela_atual,
-        "total_parcelas=", total_parcelas,
-        "descricao=", descricao
-    )
-
 
 
     db.execute("""
@@ -101,12 +92,7 @@ def registrar_parcelado(
     total_parcelas
 ):
     valor_parcela = valor_total / total_parcelas
-    print(
-        "DEBUG FINANCE PARCELADO:",
-        "valor_total=", valor_total,
-        "total_parcelas=", total_parcelas,
-        "valor_parcela=", valor_parcela
-        )
+
     data_base = datetime.now()
 
     resultado = db.execute("SELECT nome FROM cartoes")
@@ -119,13 +105,6 @@ def registrar_parcelado(
 
     for i in range(total_parcelas):
         nova_data = data_base + relativedelta(months=i)
-        print(
-            "DEBUG PARCELA:",
-            "i=", i + 1,
-            "data=", nova_data.strftime("%Y-%m-%d"),
-            "valor=", valor_parcela,
-            "total=", total_parcelas
-            )
 
         registrar_transacao(
             tipo_conta,

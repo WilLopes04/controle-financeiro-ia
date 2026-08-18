@@ -446,9 +446,7 @@ async def receive_webhook(request: Request):
                 params.get("parcelas", 1)
             )
 
-            log("DEBUG PARCELADO - params:", params)
-            log("DEBUG PARCELADO - valor_total:", valor_total)
-            log("DEBUG PARCELADO - total_parcelas:", total_parcelas)
+
 
             registrar_parcelado(
                 (params.get("tipo_conta") or "empresa").lower(),
