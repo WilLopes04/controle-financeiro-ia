@@ -42,12 +42,26 @@ def fatura_cartao(nome_cartao, tipo_conta):
 
 
 def calcular_saldo(tipo_conta):
+    from datetime import datetime
+
+    agora = datetime.now()
+    ano = agora.year
+    mes = agora.month
+
+    inicio_mes = f"{ano}-{mes:02d}-01"
+
+    if mes == 12:
+        inicio_proximo_mes = f"{ano + 1}-01-01"
+    else:
+        inicio_proximo_mes = f"{ano}-{mes + 1:02d}-01"
 
     registros = db.execute("""
         SELECT tipo_movimento, valor
         FROM transacoes
         WHERE LOWER(tipo_conta) = LOWER(?)
-    """, [tipo_conta]).rows
+          AND data >= ?
+          AND data < ?
+    """, [tipo_conta, inicio_mes, inicio_proximo_mes]).rows
 
     saldo = 0
 

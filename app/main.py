@@ -33,9 +33,8 @@ def log(*args):
         print(safe, flush=True)
 
 
-# ==========================================
 # Regras/memória (se não existirem, não quebra)
-# ==========================================
+
 from app.rules import aplicar_regras, salvar_regra, listar_regras
 
 REGRAS_HABILITADAS = True
@@ -44,33 +43,32 @@ app = FastAPI()
 
 
 
-# =========================
+
 # CONFIG WHATSAPP
-# =========================
+
 VERIFY_TOKEN = "wilson123"
 PHONE_NUMBER_ID = "952786974592454"
 GRAPH_VERSION = "v22.0"
 WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN", "").strip()
 
-# =========================
 # CONFIG OPENAI
-# =========================
+
 CARTOES_VALIDOS = ["Santander", "MercadoPago", "Latam"]
 
 
 
-# =========================
-# ROTAS (Swagger)
-# =========================
+
+# ROTAS (Swagger) FORAM PARA OS TESTES DO SERVIDOR LOCAL
+
 @app.get("/")
 def home():
     return {"status": "Servidor financeiro rodando"}
 
 
 
-# =========================
+
 # FUNÇÕES WHATSAPP
-# =========================
+
 def enviar_whatsapp(to: str, texto: str):
     if not WHATSAPP_TOKEN:
         log("ERRO: WHATSAPP_TOKEN não configurado.")
@@ -126,9 +124,9 @@ def transcrever_audio_openai(audio_bytes: bytes) -> str:
     return getattr(resp, "text", "").strip()
 
 
-# =========================
-# PARSER: comandos manuais + aprender
-# =========================
+
+# Comandos manuais + aprender
+
 def interpretar_comando(msg: str):
     txt = (msg or "").strip()
     low = txt.lower()
@@ -199,9 +197,8 @@ def interpretar_comando(msg: str):
     return ("ajuda", {})
 
 
-# =========================
 # IA: interpretar texto livre
-# =========================
+
 def interpretar_com_ia(texto: str) -> dict:
     api_key = os.getenv("OPENAI_API_KEY", "").strip()
     if not api_key:
@@ -294,9 +291,9 @@ def inferir_acao_se_faltar(ia: dict) -> str:
     return "ajuda"
 
 
-# =========================
+
 # WEBHOOK WHATSAPP
-# =========================
+
 @app.get("/webhook")
 async def verify_webhook(request: Request):
     mode = request.query_params.get("hub.mode")
