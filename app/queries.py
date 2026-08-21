@@ -26,16 +26,32 @@ def total_saidas(tipo_conta):
 
 
 def fatura_cartao(nome_cartao, tipo_conta):
+    from datetime import datetime
+
+    agora = datetime.now()
+    ano = agora.year
+    mes = agora.month
+
+    inicio_mes = f"{ano}-{mes:02d}-01"
+
+    if mes == 12:
+        inicio_proximo_mes = f"{ano + 1}-01-01"
+    else:
+        inicio_proximo_mes = f"{ano}-{mes + 1:02d}-01"
 
     resultado = db.execute("""
         SELECT COALESCE(SUM(valor), 0)
         FROM transacoes
-        WHERE tipo_conta = ?
-        AND tipo_movimento = 'saida'
-        AND forma_pagamento = ?
+        WHERE LOWER(tipo_conta) = LOWER(?)
+          AND LOWER(tipo_movimento) = 'saida'
+          AND LOWER(forma_pagamento) = LOWER(?)
+          AND data >= ?
+          AND data < ?
     """, [
         tipo_conta,
-        nome_cartao
+        nome_cartao,
+        inicio_mes,
+        inicio_proximo_mes
     ]).rows
 
     return resultado[0][0]
