@@ -11,10 +11,12 @@ APP_VERSION = "MAIN_ATUAL_2026.08.05"
 from dotenv import load_dotenv
 from openai import OpenAI
 load_dotenv()
+
 from app.finance import (
     registrar_transacao,
     registrar_parcelado
 )
+
 from app.queries import (
     calcular_saldo,
     fatura_cartao
@@ -352,7 +354,7 @@ async def receive_webhook(request: Request):
                 receive_webhook.ids_processados.clear()
 
         from_number = msg_obj.get("from", "")
-        
+        log("DIAGNOSTICO - numero recebido pela Meta:", from_number)
         cliente = selecionar_cliente(from_number)
 
         if not cliente:
