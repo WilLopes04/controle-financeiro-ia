@@ -52,7 +52,10 @@ def obter_conexao():
     else:
         url = os.getenv("TURSO_DATABASE_URL")
         token = os.getenv("TURSO_AUTH_TOKEN")
-
+        
+    url = (url or "").strip()
+    token = (token or "").strip()
+    
     if not url or not token:
         raise RuntimeError("Banco Turso do cliente não configurado.")
 
