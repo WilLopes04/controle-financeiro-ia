@@ -7,8 +7,7 @@ from app.google_sheets import (
     atualizar_aba,
     atualizar_resumo_categoria,
     atualizar_resumo_cartao,
-    SHEET_EMPRESA_ID,
-    SHEET_PESSOAL_ID
+    obter_ids_planilhas
 )
 
 
@@ -31,7 +30,7 @@ def calcular_mes_fatura(data_compra, nome_cartao):
 
 
 def gerar_planilha(mes_especifico=None):
-
+    sheet_empresa_id, sheet_pessoal_id = obter_ids_planilhas()
     resultado = db.execute("SELECT * FROM transacoes")
     dados = resultado.rows
 
@@ -186,37 +185,37 @@ def gerar_planilha(mes_especifico=None):
             )
 
         atualizar_aba(
-            SHEET_EMPRESA_ID,
+            sheet_empresa_id,
             nome_mes.upper(),
             dados_google_emp
         )
 
         atualizar_aba(
-            SHEET_PESSOAL_ID,
+            sheet_pessoal_id,
             nome_mes.upper(),
             dados_google_pes
         )
 
         atualizar_resumo_categoria(
-            SHEET_EMPRESA_ID,
+            sheet_empresa_id,
             nome_mes.upper(),
             resumo_categoria_emp_google
         )
 
         atualizar_resumo_cartao(
-            SHEET_EMPRESA_ID,
+            sheet_empresa_id,
             nome_mes.upper(),
             resumo_cartao_emp_google
         )
 
         atualizar_resumo_categoria(
-            SHEET_PESSOAL_ID,
+            sheet_pessoal_id,
             nome_mes.upper(),
             resumo_categoria_pes_google
         )
 
         atualizar_resumo_cartao(
-            SHEET_PESSOAL_ID,
+            sheet_pessoal_id,
             nome_mes.upper(),
             resumo_cartao_pes_google
         )
