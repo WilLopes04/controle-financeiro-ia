@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from libsql_client import create_client_sync
 
 from app.clients import obter_cliente
-
+from app.schema import inicializar_banco
 
 load_dotenv()
 
@@ -59,10 +59,14 @@ def obter_conexao():
     chave = (url, token)
 
     if chave not in conexoes:
-        conexoes[chave] = create_client_sync(
+        nova_conexao = create_client_sync(
             url=preparar_url(url),
             auth_token=token
         )
+
+        inicializar_banco(nova_conexao)
+
+        conexoes[chave] = nova_conexao
 
     return conexoes[chave]
 
