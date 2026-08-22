@@ -20,7 +20,7 @@ from app.queries import (
     fatura_cartao
 )
 
-
+from app.db import selecionar_cliente
 
 def log(*args):
     """
@@ -352,7 +352,19 @@ async def receive_webhook(request: Request):
                 receive_webhook.ids_processados.clear()
 
         from_number = msg_obj.get("from", "")
+        
+        cliente = selecionar_cliente(from_number)
 
+        if not cliente:
+            log("Mensagem recebida de número não autorizado.")
+            enviar_whatsapp(
+                from_number,
+                "⚠️ Este número ainda não está autorizado a utilizar o assistente financeiro."
+            )
+            return {"status": "ok"}
+
+        log("Cliente identificado:", cliente["nome"])
+        
         msg_type = msg_obj.get("type", "")
         msg_text = ""
 
