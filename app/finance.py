@@ -22,10 +22,33 @@ def registrar_transacao(
     parcela_atual=1,
     total_parcelas=1,
     id_compra=None
+    aplicar_regra_cartao=True
 ):
 
     if data is None:
-        data = datetime.now().strftime("%Y-%m-%d")
+        data_obj = datetime.now()
+    elif isinstance(data, datetime):
+        data_obj = data
+    else:
+        data_obj = datetime.strptime(data, "%Y-%m-%d")
+
+    if aplicar_regra_cartao:
+        resultado = db.execute(
+            "SELECT nome FROM cartoes"
+        )
+
+        cartoes_cadastrados = {
+            linha[0].lower()
+            for linha in resultado.rows
+        }
+
+        if forma_pagamento.lower() in cartoes_cadastrados:
+            data_obj = calcular_mes_fatura(
+                data_obj,
+                forma_pagamento
+            )
+
+    data = data_obj.strftime("%Y-%m-%d")
 
     if id_compra is None:
         id_compra = str(uuid.uuid4())
@@ -116,5 +139,6 @@ def registrar_parcelado(
             nova_data.strftime("%Y-%m-%d"),
             i + 1,
             total_parcelas,
-            id_compra
+            id_compra,
+            False
         )
