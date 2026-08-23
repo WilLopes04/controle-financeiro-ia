@@ -22,7 +22,7 @@ from app.queries import (
     fatura_cartao
 )
 
-from app.db import selecionar_cliente
+from app.db import selecionar_cliente, db
 
 def log(*args):
     """
@@ -55,7 +55,20 @@ WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN", "").strip()
 
 # CONFIG OPENAI
 
-CARTOES_VALIDOS = ["Santander", "MercadoPago", "Latam"]
+def listar_cartoes_cliente():
+    """
+    Consulta os cartões do cliente atualmente selecionado.
+    """
+    try:
+        resultado = db.execute(
+            "SELECT nome FROM cartoes ORDER BY nome"
+        )
+
+        return [linha[0] for linha in resultado.rows]
+
+    except Exception as erro:
+        log("Erro ao consultar cartões:", str(erro))
+        return []
 
 
 
@@ -166,9 +179,21 @@ def interpretar_comando(msg: str):
     if low.startswith("fatura"):
         parts = txt.split()
         tipo = parts[1].lower() if len(parts) > 1 else "empresa"
-        cartao = parts[2] if len(parts) > 2 else "Santander"
-        return ("fatura", {"tipo_conta": tipo, "cartao": cartao})
 
+        cartao = " ".join(parts[2:]).strip() if len(parts) > 2 else ""
+
+        if not cartao:
+            cartoes = listar_cartoes_cliente()
+            cartao = cartoes[0] if cartoes else ""
+
+        return (
+            "fatura",
+            {
+                "tipo_conta": tipo,
+                "cartao": cartao
+            }
+        )
+        
     # REGISTRAR (manual)
     if low.startswith("registrar "):
         parts = txt.split()
@@ -208,7 +233,7 @@ def interpretar_com_ia(texto: str) -> dict:
 
     try:
         client = OpenAI(api_key=api_key)
-
+        cartoes_validos = listar_cartoes_cliente()
         regras_txt = ""
         
         try:
@@ -248,7 +273,8 @@ Regras de campos:
 - tipo_conta: "empresa" ou "pessoal" (se não for dito, use sua melhor inferência)
 - tipo_movimento: "entrada" ou "saida"
 - categoria: se não souber use "outros"
-- forma_pagamento: "pix", "debito", "credito" ou um cartão em {CARTOES_VALIDOS}
+- forma_pagamento: "pix", "debito", "credito" ou um cartão cadastrado em {cartoes_validos}
+- Quando a mensagem mencionar um cartão cadastrado, devolva exatamente o nome presente nessa lista.
 - descricao: texto curto (se não houver, use algo como "Transação")
 - valor: número com ponto
 
