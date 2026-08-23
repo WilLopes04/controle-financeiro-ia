@@ -1,3 +1,4 @@
+import calendar
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from collections import defaultdict
@@ -13,20 +14,37 @@ from app.google_sheets import (
 
 def calcular_mes_fatura(data_compra, nome_cartao):
 
-    resultado = db.execute(
-        "SELECT dia_fechamento FROM cartoes WHERE nome = ?",
-        [nome_cartao]
-    ).rows
+    resultado = db.execute("""
+        SELECT dia_fechamento, dia_vencimento
+        FROM cartoes
+        WHERE LOWER(nome) = LOWER(?)
+    """, [nome_cartao]).rows
 
     if not resultado:
         return data_compra
 
-    dia_fechamento = resultado[0][0]
+    dia_fechamento = int(resultado[0][0])
+    dia_vencimento = int(resultado[0][1])
 
+    # Depois do fechamento, a compra pertence à fatura seguinte.
     if data_compra.day > dia_fechamento:
-        return data_compra + relativedelta(months=1)
+        mes_fatura = data_compra + relativedelta(months=1)
+    else:
+        mes_fatura = data_compra
 
-    return data_compra
+    # Evita datas inválidas, como dia 30 em fevereiro.
+    ultimo_dia_mes = calendar.monthrange(
+        mes_fatura.year,
+        mes_fatura.month
+    )[1]
+
+    dia_pagamento = min(dia_vencimento, ultimo_dia_mes)
+
+    return datetime(
+        mes_fatura.year,
+        mes_fatura.month,
+        dia_pagamento
+    )
 
 
 def gerar_planilha(mes_especifico=None):
