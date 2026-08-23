@@ -21,7 +21,7 @@ def registrar_transacao(
     data=None,
     parcela_atual=1,
     total_parcelas=1,
-    id_compra=None
+    id_compra=None,
     aplicar_regra_cartao=True
 ):
 
