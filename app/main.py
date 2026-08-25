@@ -1,3 +1,4 @@
+from datetime import datetime
 from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse
 import os
@@ -233,6 +234,8 @@ def interpretar_com_ia(texto: str) -> dict:
 
     try:
         client = OpenAI(api_key=api_key)
+        
+        data_atual = datetime.now().strftime("%Y-%m-%d")        
         cartoes_validos = listar_cartoes_cliente()
         regras_txt = ""
         
@@ -277,6 +280,17 @@ Regras de campos:
 - Quando a mensagem mencionar um cartão cadastrado, devolva exatamente o nome presente nessa lista.
 - descricao: texto curto (se não houver, use algo como "Transação")
 - valor: número com ponto
+- data: use sempre o formato "YYYY-MM-DD"
+- A data atual é {data_atual}
+- Se nenhuma data for informada, use {data_atual}
+- Se for informado mês e ano, mas não o dia, use o dia 01
+- Se for informado somente um mês futuro, use o dia 01 desse mês
+- Se o mês informado já tiver passado no ano atual, considere o próximo ano
+- Exemplos:
+  "em outubro" -> dia 01 do próximo outubro
+  "dia 5 de outubro" -> dia 05 do próximo outubro
+  "em janeiro de 2027" -> "2027-01-01"
+
 
 IMPORTANTE: responda SOMENTE JSON puro (sem markdown).
 """
@@ -504,7 +518,9 @@ async def receive_webhook(request: Request):
                 params.get("forma_pagamento", "pix"),
                 params.get("descricao", "Transação"),
                 float(str(params.get("valor", 0)).replace(",", ".")),
+                params.get("data"),
             )
+            
             enviar_whatsapp(from_number, "✅ Transação registrada e planilha atualizada!")
 
         elif acao == "erro":
