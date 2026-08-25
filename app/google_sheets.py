@@ -5,7 +5,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 
 from app.db import cliente_atual
-
+from datetime import datetime
 
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
@@ -112,3 +112,54 @@ def atualizar_aba_completa(
             "values": resumo_cartao
         }
     ])
+    
+def adicionar_transacao_planilha(
+    tipo_conta,
+    linha_transacao
+):
+    """
+    Acrescenta somente uma transação na planilha correta,
+    sem limpar ou recriar a aba.
+    """
+
+    sheet_empresa_id, sheet_pessoal_id = (
+        obter_ids_planilhas()
+    )
+
+    if tipo_conta.lower() == "empresa":
+        planilha_id = sheet_empresa_id
+    else:
+        planilha_id = sheet_pessoal_id
+
+    data_transacao = datetime.strptime(
+        str(linha_transacao[1]),
+        "%Y-%m-%d"
+    )
+
+    meses = {
+        1: "JANEIRO",
+        2: "FEVEREIRO",
+        3: "MARÇO",
+        4: "ABRIL",
+        5: "MAIO",
+        6: "JUNHO",
+        7: "JULHO",
+        8: "AGOSTO",
+        9: "SETEMBRO",
+        10: "OUTUBRO",
+        11: "NOVEMBRO",
+        12: "DEZEMBRO"
+    }
+
+    planilha = obter_planilha(planilha_id)
+
+    aba = planilha.worksheet(
+        meses[data_transacao.month]
+    )
+
+    aba.append_row(
+        linha_transacao,
+        value_input_option="USER_ENTERED",
+        insert_data_option="INSERT_ROWS",
+        table_range="A5:J"
+    )
