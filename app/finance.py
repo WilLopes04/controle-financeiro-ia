@@ -4,7 +4,11 @@ import uuid
 
 from app.db import db
 from app.reports import calcular_mes_fatura
-from app.google_sheets import adicionar_transacao_planilha
+from app.google_sheets import (
+    adicionar_transacao_planilha,
+    obter_transacoes_manuais,
+    preencher_id_transacao_manual
+)
 
 
 
@@ -155,3 +159,185 @@ def registrar_parcelado(
             id_compra,
             False
         )
+
+def sincronizar_novas_transacoes_planilha():
+    """
+    Insere no Turso somente linhas manuais sem ID.
+    Depois preenche o ID na mesma linha da planilha.
+    """
+
+    transacoes = obter_transacoes_manuais()
+
+    resultado = {
+        "encontradas": len(transacoes),
+        "inseridas": 0,
+        "recuperadas": 0,
+        "erros": []
+    }
+
+    for item in transacoes:
+        referencia = (
+            f"{item['nome_aba']}!"
+            f"A{item['numero_linha']}"
+        )
+
+        try:
+            texto_data = str(item["data"]).strip()
+            data_obj = None
+
+            for formato in (
+                "%Y-%m-%d",
+                "%d/%m/%Y"
+            ):
+                try:
+                    data_obj = datetime.strptime(
+                        texto_data,
+                        formato
+                    )
+                    break
+                except ValueError:
+                    continue
+
+            if data_obj is None:
+                raise ValueError(
+                    f"data inválida: {texto_data}"
+                )
+
+            data = data_obj.strftime("%Y-%m-%d")
+
+            tipo_movimento = str(
+                item["tipo_movimento"]
+            ).strip().lower()
+
+            if tipo_movimento == "saída":
+                tipo_movimento = "saida"
+
+            if tipo_movimento not in {
+                "entrada",
+                "saida"
+            }:
+                raise ValueError(
+                    "tipo de movimento deve ser entrada ou saida"
+                )
+
+            valor_original = item["valor"]
+
+            if isinstance(valor_original, (int, float)):
+                valor = float(valor_original)
+            else:
+                texto_valor = (
+                    str(valor_original)
+                    .strip()
+                    .replace("R$", "")
+                    .replace(" ", "")
+                )
+
+                if "," in texto_valor:
+                    texto_valor = (
+                        texto_valor
+                        .replace(".", "")
+                        .replace(",", ".")
+                    )
+
+                valor = float(texto_valor)
+
+            parcela_atual = int(
+                float(
+                    str(item["parcela_atual"])
+                    .strip()
+                    .replace(",", ".")
+                )
+            )
+
+            total_parcelas = int(
+                float(
+                    str(item["total_parcelas"])
+                    .strip()
+                    .replace(",", ".")
+                )
+            )
+
+            # Identificador determinístico:
+            # evita duplicação se o banco registrar e o Google falhar.
+            chave_manual = (
+                f"{item['planilha_id']}|"
+                f"{item['nome_aba']}|"
+                f"{item['numero_linha']}|"
+                f"{data}|"
+                f"{item['descricao']}|"
+                f"{valor}"
+            )
+
+            id_compra = str(
+                uuid.uuid5(
+                    uuid.NAMESPACE_URL,
+                    chave_manual
+                )
+            )
+
+            existente = db.execute("""
+                SELECT id
+                FROM transacoes
+                WHERE id_compra = ?
+                LIMIT 1
+            """, [id_compra]).rows
+
+            if existente:
+                id_transacao = existente[0][0]
+                resultado["recuperadas"] += 1
+            else:
+                db.execute("""
+                    INSERT INTO transacoes (
+                        data,
+                        tipo_conta,
+                        tipo_movimento,
+                        categoria,
+                        forma_pagamento,
+                        descricao,
+                        valor,
+                        parcela_atual,
+                        total_parcelas,
+                        id_compra
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, [
+                    data,
+                    item["tipo_conta"],
+                    tipo_movimento,
+                    str(item["categoria"]).strip(),
+                    str(item["forma_pagamento"]).strip(),
+                    str(item["descricao"]).strip(),
+                    valor,
+                    parcela_atual,
+                    total_parcelas,
+                    id_compra
+                ])
+
+                registro = db.execute("""
+                    SELECT id
+                    FROM transacoes
+                    WHERE id_compra = ?
+                    LIMIT 1
+                """, [id_compra]).rows
+
+                if not registro:
+                    raise RuntimeError(
+                        "o banco não retornou o ID criado"
+                    )
+
+                id_transacao = registro[0][0]
+                resultado["inseridas"] += 1
+
+            preencher_id_transacao_manual(
+                item["planilha_id"],
+                item["nome_aba"],
+                item["numero_linha"],
+                id_transacao
+            )
+
+        except Exception as erro:
+            resultado["erros"].append(
+                f"{referencia}: {erro}"
+            )
+
+    return resultado
