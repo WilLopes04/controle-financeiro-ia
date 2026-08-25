@@ -19,7 +19,8 @@ from app.finance import (
     registrar_transacao,
     registrar_parcelado,
     sincronizar_novas_transacoes_planilha,
-    diagnosticar_edicoes_planilha
+    diagnosticar_edicoes_planilha,
+    aplicar_edicoes_planilha
 )
 
 from app.queries import (
@@ -174,6 +175,12 @@ def interpretar_comando(msg: str):
         "verificar edições"
     ):
         return ("diagnosticar_edicoes", {})
+
+    if low in (
+        "aplicar edicoes",
+        "aplicar edições"
+    ):
+        return ("aplicar_edicoes", {})
     
     # aprender: tecido = empresa / insumos
     if low.startswith("aprender:"):
@@ -524,6 +531,30 @@ async def receive_webhook(request: Request):
 
             return {"status": "importacao_concluida"}
 
+        if acao == "aplicar_edicoes":
+            resultado = aplicar_edicoes_planilha()
+
+            mensagem = (
+                "✅ Edições aplicadas ao banco:\n"
+                f"• Registros atualizados: "
+                f"{resultado['alteradas']}\n"
+                f"• Erros: "
+                f"{len(resultado['erros'])}"
+            )
+
+            if resultado["erros"]:
+                mensagem += (
+                    "\n\n⚠️ "
+                    + "\n".join(resultado["erros"][:3])
+                )
+
+            enviar_whatsapp(
+                from_number,
+                mensagem
+            )
+
+            return {"status": "edicoes_aplicadas"}
+        
         if acao == "diagnosticar_edicoes":
             resultado = diagnosticar_edicoes_planilha()
 
