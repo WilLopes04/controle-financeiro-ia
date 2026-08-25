@@ -68,6 +68,7 @@ def gerar_planilha(mes_especifico=None):
     }
 
     cabecalho = [
+        "ID",
         "Data",
         "Tipo Movimento",
         "Categoria",
@@ -75,7 +76,8 @@ def gerar_planilha(mes_especifico=None):
         "Descrição",
         "Valor",
         "Parcela",
-        "Total Parcelas"
+        "Total Parcelas",
+        "Excluir"
     ]
 
     for num_mes, nome_mes in meses.items():
@@ -108,14 +110,16 @@ def gerar_planilha(mes_especifico=None):
                 continue
 
             linha_google = [
-                linha[1],
-                linha[3],
-                linha[4],
-                linha[5],
-                linha[6],
-                linha[7],
-                linha[8],
-                linha[9]
+                linha[0],   # ID da transação no Turso
+                linha[1],   # Data
+                linha[3],   # Tipo movimento
+                linha[4],   # Categoria
+                linha[5],   # Forma de pagamento
+                linha[6],   # Descrição
+                linha[7],   # Valor
+                linha[8],   # Parcela atual
+                linha[9],   # Total de parcelas
+                False       # Coluna Excluir
             ]
 
             tipo_conta = linha[2].lower()
