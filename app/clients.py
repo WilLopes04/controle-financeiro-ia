@@ -39,6 +39,9 @@ cliente_principal = {
     "turso_token": os.getenv("TURSO_AUTH_TOKEN"),
     "sheet_empresa_id": os.getenv("SHEET_EMPRESA_ID"),
     "sheet_pessoal_id": os.getenv("SHEET_PESSOAL_ID"),
+    "sheet_token": os.getenv(
+        "PLANILHA_TOKEN_CLIENTE_PRINCIPAL"
+    ),    
 }
 
 cadastrar_telefones(
@@ -54,6 +57,9 @@ cliente_jvsotero = {
     "turso_token": os.getenv("TURSO_AUTH_TOKEN_JVSOTERO"),
     "sheet_empresa_id": os.getenv("SHEET_EMPRESA_ID_JVSOTERO"),
     "sheet_pessoal_id": os.getenv("SHEET_PESSOAL_ID_JVSOTERO"),
+    "sheet_token": os.getenv(
+        "PLANILHA_TOKEN_JVSOTERO"
+    ),
 }
 
 cadastrar_telefones(
@@ -66,3 +72,22 @@ cadastrar_telefones(
 def obter_cliente(numero: str):
     telefone = normalizar_telefone(numero)
     return CLIENTES.get(telefone)
+
+def obter_cliente_por_planilha(planilha_id: str):
+    """
+    Localiza o cliente e o tipo de conta pelo ID da planilha.
+    """
+    planilha_id = str(planilha_id or "").strip()
+
+    if not planilha_id:
+        return None, None
+
+    for cliente in CLIENTES.values():
+
+        if planilha_id == cliente.get("sheet_pessoal_id"):
+            return cliente, "pessoal"
+
+        if planilha_id == cliente.get("sheet_empresa_id"):
+            return cliente, "empresa"
+
+    return None, None
