@@ -17,7 +17,8 @@ load_dotenv()
 
 from app.finance import (
     registrar_transacao,
-    registrar_parcelado
+    registrar_parcelado,
+    sincronizar_novas_transacoes_planilha
 )
 
 from app.queries import (
@@ -161,6 +162,11 @@ def interpretar_comando(msg: str):
     ):
         return ("diagnosticar_sincronizacao_banco", {})
 
+    if low in (
+        "importar linhas manuais",
+        "importar planilha"
+    ):
+        return ("importar_linhas_manuais", {})    
     
     # aprender: tecido = empresa / insumos
     if low.startswith("aprender:"):
@@ -483,6 +489,34 @@ async def receive_webhook(request: Request):
             if sugestao.get("categoria") and (params.get("categoria") in (None, "", "outros")):
                 params["categoria"] = sugestao["categoria"]
 
+        if acao == "importar_linhas_manuais":
+            resultado = sincronizar_novas_transacoes_planilha()
+
+            mensagem = (
+                "📥 Importação das linhas manuais:\n"
+                f"• Linhas encontradas: "
+                f"{resultado['encontradas']}\n"
+                f"• Inseridas no banco: "
+                f"{resultado['inseridas']}\n"
+                f"• Registros recuperados: "
+                f"{resultado['recuperadas']}\n"
+                f"• Erros: "
+                f"{len(resultado['erros'])}"
+            )
+
+            if resultado["erros"]:
+                mensagem += (
+                    "\n\n⚠️ "
+                    + "\n".join(resultado["erros"][:3])
+                )
+
+            enviar_whatsapp(
+                from_number,
+                mensagem
+            )
+
+            return {"status": "importacao_concluida"}
+        
         if acao == "diagnosticar_sincronizacao_banco":
             diagnostico = diagnosticar_alteracoes_planilhas()
 
