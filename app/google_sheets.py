@@ -177,3 +177,94 @@ def adicionar_transacao_planilha(
         insert_data_option="INSERT_ROWS",
         table_range="A5:J"
     )
+
+def diagnosticar_alteracoes_planilhas():
+    """
+    Lê as planilhas do cliente atual sem alterar o Google Sheets
+    nem o banco de dados.
+    """
+
+    meses = [
+        "JANEIRO",
+        "FEVEREIRO",
+        "MARÇO",
+        "ABRIL",
+        "MAIO",
+        "JUNHO",
+        "JULHO",
+        "AGOSTO",
+        "SETEMBRO",
+        "OUTUBRO",
+        "NOVEMBRO",
+        "DEZEMBRO"
+    ]
+
+    sheet_empresa_id, sheet_pessoal_id = (
+        obter_ids_planilhas()
+    )
+
+    resultado = {
+        "total_linhas": 0,
+        "novas_sem_id": 0,
+        "marcadas_exclusao": 0,
+        "existentes_com_id": 0
+    }
+
+    planilhas = [
+        ("empresa", sheet_empresa_id),
+        ("pessoal", sheet_pessoal_id)
+    ]
+
+    for tipo_conta, planilha_id in planilhas:
+        planilha = obter_planilha(planilha_id)
+
+        intervalos = [
+            f"{mes}!A6:J"
+            for mes in meses
+        ]
+
+        resposta = planilha.values_batch_get(
+            intervalos,
+            params={
+                "valueRenderOption": "UNFORMATTED_VALUE"
+            }
+        )
+
+        for bloco in resposta.get("valueRanges", []):
+            linhas = bloco.get("values", [])
+
+            for linha in linhas:
+                linha = list(linha) + [""] * (
+                    10 - len(linha)
+                )
+
+                # Ignora linhas completamente vazias.
+                if not any(
+                    str(valor).strip()
+                    for valor in linha[:9]
+                ):
+                    continue
+
+                resultado["total_linhas"] += 1
+
+                id_transacao = str(linha[0]).strip()
+
+                excluir = (
+                    str(linha[9]).strip().lower()
+                    in {
+                        "true",
+                        "verdadeiro",
+                        "sim",
+                        "1"
+                    }
+                )
+
+                if not id_transacao:
+                    resultado["novas_sem_id"] += 1
+                else:
+                    resultado["existentes_com_id"] += 1
+
+                if excluir and id_transacao:
+                    resultado["marcadas_exclusao"] += 1
+
+    return resultado
