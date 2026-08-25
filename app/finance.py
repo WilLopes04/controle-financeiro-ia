@@ -3,13 +3,10 @@ from dateutil.relativedelta import relativedelta
 import uuid
 
 from app.db import db
-from app.reports import (
-    calcular_mes_fatura,
-    gerar_planilha
-)
+from app.reports import calcular_mes_fatura
+from app.google_sheets import adicionar_transacao_planilha
 
-def atualizar_mes(nome_mes):
-    gerar_planilha(nome_mes)
+
 
 def registrar_transacao(
     tipo_conta,
@@ -82,24 +79,40 @@ def registrar_transacao(
         id_compra
     ])
 
-    mes = datetime.strptime(data, "%Y-%m-%d").month
+    resultado = db.execute("""
+        SELECT
+            id,
+            data,
+            tipo_movimento,
+            categoria,
+            forma_pagamento,
+            descricao,
+            valor,
+            parcela_atual,
+            total_parcelas
+        FROM transacoes
+        WHERE id_compra = ?
+        AND parcela_atual = ?
+        ORDER BY id DESC
+        LIMIT 1
+    """, [
+        id_compra,
+        parcela_atual
+    ]).rows
 
-    meses = {
-        1: "Janeiro",
-        2: "Fevereiro",
-        3: "Março",
-        4: "Abril",
-        5: "Maio",
-        6: "Junho",
-        7: "Julho",
-        8: "Agosto",
-        9: "Setembro",
-        10: "Outubro",
-        11: "Novembro",
-        12: "Dezembro"
-   }
+    if resultado:
+        linha_planilha = list(resultado[0]) + [False]
 
-    atualizar_mes(meses[mes]) 
+        try:
+            adicionar_transacao_planilha(
+                tipo_conta,
+                linha_planilha
+            )
+        except Exception as erro:
+            print(
+                "AVISO: transação registrada no banco, "
+                f"mas não foi adicionada à planilha: {erro}"
+            ) 
 
 # =========================
 # REGISTRAR PARCELADO
