@@ -1,5 +1,8 @@
 from app.reports import gerar_planilha
-from app.google_sheets import diagnosticar_alteracoes_planilhas
+from app.google_sheets import (
+    diagnosticar_alteracoes_planilhas,
+    configurar_checkboxes_excluir
+)
 from datetime import datetime
 from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse
@@ -188,6 +191,9 @@ def interpretar_comando(msg: str):
         "confirmar exclusões"
     ):
         return ("aplicar_exclusoes", {})
+
+    if low == "configurar planilhas":
+        return ("configurar_planilhas", {})
     
     # aprender: tecido = empresa / insumos
     if low.startswith("aprender:"):
@@ -562,6 +568,24 @@ async def receive_webhook(request: Request):
 
             return {"status": "edicoes_aplicadas"}
 
+        if acao == "configurar_planilhas":
+            resultado = configurar_checkboxes_excluir()
+
+            enviar_whatsapp(
+                from_number,
+                (
+                    "✅ Planilhas configuradas!\n"
+                    f"• Planilhas atualizadas: "
+                    f"{resultado['planilhas']}\n"
+                    f"• Abas configuradas: "
+                    f"{resultado['abas']}\n"
+                    "• Coluna Excluir convertida "
+                    "em caixas de seleção."
+                )
+            )
+
+            return {"status": "planilhas_configuradas"}
+        
         if acao == "aplicar_exclusoes":
             resultado = aplicar_exclusoes_planilha()
 
