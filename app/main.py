@@ -1,3 +1,4 @@
+from app.reports import gerar_planilha
 from datetime import datetime
 from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse
@@ -146,7 +147,12 @@ def transcrever_audio_openai(audio_bytes: bytes) -> str:
 def interpretar_comando(msg: str):
     txt = (msg or "").strip()
     low = txt.lower()
-
+    if low in (
+        "sincronizar planilha",
+        "sincronizar planilhas"
+    ):
+        return ("sincronizar_planilhas", {})
+    
     # aprender: tecido = empresa / insumos
     if low.startswith("aprender:"):
         if not REGRAS_HABILITADAS:
@@ -469,6 +475,17 @@ async def receive_webhook(request: Request):
             if sugestao.get("categoria") and (params.get("categoria") in (None, "", "outros")):
                 params["categoria"] = sugestao["categoria"]
 
+        # Executar
+        if acao == "sincronizar_planilhas":
+            gerar_planilha()
+
+            enviar_whatsapp(
+                from_number,
+                "✅ Planilhas sincronizadas com o banco de dados!"
+            )
+
+            return {"status": "ok"}
+        
         # Executar
         if acao == "aprender":
             salvar_regra(params["padrao"], params["tipo_conta"], params.get("categoria"))
