@@ -498,4 +498,72 @@ def excluir_linha_planilha(
 
     aba.delete_rows(numero_linha)  
 
-    
+    def configurar_checkboxes_excluir():
+    """
+    Aplica caixas de seleção na coluna Excluir das
+    planilhas pessoal e empresarial do cliente atual.
+    """
+
+    meses = {
+        "JANEIRO",
+        "FEVEREIRO",
+        "MARÇO",
+        "ABRIL",
+        "MAIO",
+        "JUNHO",
+        "JULHO",
+        "AGOSTO",
+        "SETEMBRO",
+        "OUTUBRO",
+        "NOVEMBRO",
+        "DEZEMBRO"
+    }
+
+    sheet_empresa_id, sheet_pessoal_id = (
+        obter_ids_planilhas()
+    )
+
+    resultado = {
+        "planilhas": 0,
+        "abas": 0
+    }
+
+    for planilha_id in (
+        sheet_empresa_id,
+        sheet_pessoal_id
+    ):
+        planilha = obter_planilha(planilha_id)
+        requisicoes = []
+
+        for aba in planilha.worksheets():
+            if aba.title.upper() not in meses:
+                continue
+
+            requisicoes.append({
+                "setDataValidation": {
+                    "range": {
+                        "sheetId": aba.id,
+                        "startRowIndex": 5,
+                        "startColumnIndex": 9,
+                        "endColumnIndex": 10
+                    },
+                    "rule": {
+                        "condition": {
+                            "type": "BOOLEAN"
+                        },
+                        "strict": True,
+                        "showCustomUi": True
+                    }
+                }
+            })
+
+            resultado["abas"] += 1
+
+        if requisicoes:
+            planilha.batch_update({
+                "requests": requisicoes
+            })
+
+            resultado["planilhas"] += 1
+
+    return resultado
