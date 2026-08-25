@@ -96,40 +96,37 @@ def atualizar_aba_completa(
 
     aba.clear()
 
-    aba.batch_update([
-        {
-            "range": "A1",
-            "values": dados
-        },
-        {
-            "range": "L2",
-            "values": [
-                ["Resumo por Categoria"],
-                [
-                    '=QUERY(A6:J,"select D, sum(G) '
-                    'where C = \'saida\' '
-                    'and (J = FALSE or J is null) '
-                    'group by D '
-                    'label D \'Categoria\', '
-                    'sum(G) \'Total\'",0)'
+    aba.batch_update(
+        [
+            {
+                "range": "A1",
+                "values": dados
+            },
+            {
+                "range": "L2",
+                "values": [
+                    ["Resumo por Categoria"],
+                    [
+                        '=IFERROR(QUERY(A6:J,"select D, sum(G) '
+                        "where C = 'saida' and (J = FALSE or J is null) "
+                        "group by D label D 'Categoria', sum(G) 'Total'\",0),\"\")"
+                    ]
                 ]
-            ]
-        },
-        {
-            "range": "O2",
-            "values": [
-                ["Resumo por Pagamento"],
-                [
-                    '=QUERY(A6:J,"select E, sum(G) '
-                    'where C = \'saida\' '
-                    'and (J = FALSE or J is null) '
-                    'group by E '
-                    'label E \'Pagamento\', '
-                    'sum(G) \'Total\'",0)'
+            },
+            {
+                "range": "O2",
+                "values": [
+                    ["Resumo por Pagamento"],
+                    [
+                        '=IFERROR(QUERY(A6:J,"select E, sum(G) '
+                        "where C = 'saida' and (J = FALSE or J is null) "
+                        "group by E label E 'Pagamento', sum(G) 'Total'\",0),\"\")"
+                    ]
                 ]
-            ]
-        }
-    ])
+            }
+        ],
+        value_input_option="USER_ENTERED"
+    )
     
 def adicionar_transacao_planilha(
     tipo_conta,
