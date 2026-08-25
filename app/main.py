@@ -20,7 +20,8 @@ from app.finance import (
     registrar_parcelado,
     sincronizar_novas_transacoes_planilha,
     diagnosticar_edicoes_planilha,
-    aplicar_edicoes_planilha
+    aplicar_edicoes_planilha,
+    aplicar_exclusoes_planilha
 )
 
 from app.queries import (
