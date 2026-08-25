@@ -215,15 +215,11 @@ def gerar_planilha(mes_especifico=None):
         atualizar_aba_completa(
             sheet_empresa_id,
             nome_mes.upper(),
-            dados_google_emp,
-            resumo_categoria_emp_google,
-            resumo_cartao_emp_google
+            dados_google_emp
         )
 
         atualizar_aba_completa(
             sheet_pessoal_id,
             nome_mes.upper(),
-            dados_google_pes,
-            resumo_categoria_pes_google,
-            resumo_cartao_pes_google
+            dados_google_pes
         )
