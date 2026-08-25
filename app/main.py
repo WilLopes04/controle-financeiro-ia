@@ -18,7 +18,8 @@ load_dotenv()
 from app.finance import (
     registrar_transacao,
     registrar_parcelado,
-    sincronizar_novas_transacoes_planilha
+    sincronizar_novas_transacoes_planilha,
+    diagnosticar_edicoes_planilha
 )
 
 from app.queries import (
@@ -167,6 +168,12 @@ def interpretar_comando(msg: str):
         "importar planilha"
     ):
         return ("importar_linhas_manuais", {})    
+
+    if low in (
+        "verificar edicoes",
+        "verificar edições"
+    ):
+        return ("diagnosticar_edicoes", {})
     
     # aprender: tecido = empresa / insumos
     if low.startswith("aprender:"):
@@ -516,6 +523,44 @@ async def receive_webhook(request: Request):
             )
 
             return {"status": "importacao_concluida"}
+
+        if acao == "diagnosticar_edicoes":
+            resultado = diagnosticar_edicoes_planilha()
+
+            mensagem = (
+                "✏️ Diagnóstico de edições:\n"
+                f"• Registros verificados: "
+                f"{resultado['verificadas']}\n"
+                f"• Registros alterados: "
+                f"{len(resultado['alteradas'])}\n"
+                f"• IDs não encontrados: "
+                f"{len(resultado['ids_ausentes'])}\n"
+                f"• Erros: "
+                f"{len(resultado['erros'])}"
+            )
+
+            if resultado["alteradas"]:
+                mensagem += "\n\nAlterações encontradas:"
+
+                for alteracao in resultado["alteradas"][:5]:
+                    mensagem += (
+                        f"\n• ID {alteracao['id']} "
+                        f"({alteracao['referencia']}): "
+                        + ", ".join(alteracao["campos"])
+                    )
+
+            if resultado["erros"]:
+                mensagem += (
+                    "\n\n⚠️ "
+                    + "\n".join(resultado["erros"][:3])
+                )
+
+            enviar_whatsapp(
+                from_number,
+                mensagem
+            )
+
+            return {"status": "diagnostico_edicoes_ok"}
         
         if acao == "diagnosticar_sincronizacao_banco":
             diagnostico = diagnosticar_alteracoes_planilhas()
