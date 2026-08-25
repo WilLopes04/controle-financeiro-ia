@@ -399,7 +399,7 @@ async def receive_webhook(request: Request):
                 receive_webhook.ids_processados.clear()
 
         from_number = msg_obj.get("from", "")
-        log("DIAGNOSTICO - numero recebido pela Meta:", from_number)
+        
         cliente = selecionar_cliente(from_number)
 
         if not cliente:
