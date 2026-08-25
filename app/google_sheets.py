@@ -75,10 +75,10 @@ def atualizar_aba(planilha_id, nome_aba, dados):
 def atualizar_resumo_categoria(sheet_id, nome_aba, resumo):
     planilha = obter_planilha(sheet_id)
     aba = planilha.worksheet(nome_aba)
-    aba.update("J2", resumo)
+    aba.update("L2", resumo)
 
 
 def atualizar_resumo_cartao(sheet_id, nome_aba, resumo):
     planilha = obter_planilha(sheet_id)
     aba = planilha.worksheet(nome_aba)
-    aba.update("M2", resumo)
+    aba.update("O2", resumo)
