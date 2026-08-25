@@ -105,11 +105,31 @@ def atualizar_aba_completa(
         },
         {
             "range": "L2",
-            "values": resumo_categoria
+            "values": [
+                ["Resumo por Categoria"],
+                [
+                    '=QUERY(A6:J,"select D, sum(G) '
+                    'where C = \'saida\' '
+                    'and (J = FALSE or J is null) '
+                    'group by D '
+                    'label D \'Categoria\', '
+                    'sum(G) \'Total\'",0)'
+                ]
+            ]
         },
         {
             "range": "O2",
-            "values": resumo_cartao
+            "values": [
+                ["Resumo por Pagamento"],
+                [
+                    '=QUERY(A6:J,"select E, sum(G) '
+                    'where C = \'saida\' '
+                    'and (J = FALSE or J is null) '
+                    'group by E '
+                    'label E \'Pagamento\', '
+                    'sum(G) \'Total\'",0)'
+                ]
+            ]
         }
     ])
     
