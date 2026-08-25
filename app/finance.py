@@ -548,12 +548,82 @@ def diagnosticar_edicoes_planilha():
                 resultado["alteradas"].append({
                     "id": id_transacao,
                     "referencia": referencia,
-                    "campos": campos_alterados
+                    "campos": campos_alterados,
+                    "valores": valores_planilha
                 })
 
         except Exception as erro:
             resultado["erros"].append(
                 f"{referencia}: {erro}"
+            )
+
+    return resultado
+
+
+def aplicar_edicoes_planilha():
+    """
+    Aplica no Turso as edições detectadas nas planilhas.
+    Não trata exclusões.
+    """
+
+    diagnostico = diagnosticar_edicoes_planilha()
+
+    resultado = {
+        "alteradas": 0,
+        "erros": []
+    }
+
+    campos_permitidos = {
+        "tipo_movimento",
+        "categoria",
+        "forma_pagamento",
+        "descricao",
+        "valor",
+        "parcela_atual",
+        "total_parcelas"
+    }
+
+    for alteracao in diagnostico["alteradas"]:
+        campos_detectados = set(
+            alteracao["campos"]
+        )
+
+        if not (
+            campos_detectados
+            & campos_permitidos
+        ):
+            continue
+
+        try:
+            valores = alteracao["valores"]
+
+            db.execute("""
+                UPDATE transacoes
+                SET
+                    tipo_movimento = ?,
+                    categoria = ?,
+                    forma_pagamento = ?,
+                    descricao = ?,
+                    valor = ?,
+                    parcela_atual = ?,
+                    total_parcelas = ?
+                WHERE id = ?
+            """, [
+                valores["tipo_movimento"],
+                valores["categoria"],
+                valores["forma_pagamento"],
+                valores["descricao"],
+                valores["valor"],
+                valores["parcela_atual"],
+                valores["total_parcelas"],
+                alteracao["id"]
+            ])
+
+            resultado["alteradas"] += 1
+
+        except Exception as erro:
+            resultado["erros"].append(
+                f"{alteracao['referencia']}: {erro}"
             )
 
     return resultado
