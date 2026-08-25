@@ -4,10 +4,8 @@ from contextvars import ContextVar
 from dotenv import load_dotenv
 from libsql_client import create_client_sync
 
-from app.clients import (
-    obter_cliente,
-    obter_cliente_por_planilha
-)
+from app.clients import obter_cliente
+
 from app.schema import inicializar_banco
 
 load_dotenv()
@@ -41,21 +39,6 @@ def selecionar_cliente(numero_telefone: str):
     cliente_atual.set(cliente)
     return cliente
 
-def selecionar_cliente_por_planilha(planilha_id: str):
-    """
-    Seleciona o cliente pelo ID da planilha e informa
-    se ela representa a conta pessoal ou empresarial.
-    """
-    cliente, tipo_conta = obter_cliente_por_planilha(
-        planilha_id
-    )
-
-    if not cliente:
-        return None, None
-
-    cliente_atual.set(cliente)
-
-    return cliente, tipo_conta
 
 
 def obter_conexao():
