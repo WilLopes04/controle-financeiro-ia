@@ -268,3 +268,121 @@ def diagnosticar_alteracoes_planilhas():
                     resultado["marcadas_exclusao"] += 1
 
     return resultado
+
+def obter_transacoes_manuais():
+    """
+    Retorna as linhas preenchidas manualmente que ainda não possuem ID.
+    Não altera o banco nem a planilha.
+    """
+
+    meses = [
+        "JANEIRO",
+        "FEVEREIRO",
+        "MARÇO",
+        "ABRIL",
+        "MAIO",
+        "JUNHO",
+        "JULHO",
+        "AGOSTO",
+        "SETEMBRO",
+        "OUTUBRO",
+        "NOVEMBRO",
+        "DEZEMBRO"
+    ]
+
+    sheet_empresa_id, sheet_pessoal_id = (
+        obter_ids_planilhas()
+    )
+
+    planilhas = [
+        ("empresa", sheet_empresa_id),
+        ("pessoal", sheet_pessoal_id)
+    ]
+
+    transacoes_manuais = []
+
+    for tipo_conta, planilha_id in planilhas:
+        planilha = obter_planilha(planilha_id)
+
+        intervalos = [
+            f"{mes}!A6:J"
+            for mes in meses
+        ]
+
+        resposta = planilha.values_batch_get(
+            intervalos,
+            params={
+                "valueRenderOption": "UNFORMATTED_VALUE"
+            }
+        )
+
+        blocos = resposta.get("valueRanges", [])
+
+        for nome_mes, bloco in zip(meses, blocos):
+            linhas = bloco.get("values", [])
+
+            for numero_linha, linha in enumerate(
+                linhas,
+                start=6
+            ):
+                linha = list(linha) + [""] * (
+                    10 - len(linha)
+                )
+
+                if not any(
+                    str(valor).strip()
+                    for valor in linha[:9]
+                ):
+                    continue
+
+                id_transacao = str(linha[0]).strip()
+
+                excluir = (
+                    str(linha[9]).strip().lower()
+                    in {
+                        "true",
+                        "verdadeiro",
+                        "sim",
+                        "1"
+                    }
+                )
+
+                # Uma linha manual nova não possui ID
+                # e não pode estar marcada para exclusão.
+                if not id_transacao and not excluir:
+                    transacoes_manuais.append({
+                        "tipo_conta": tipo_conta,
+                        "planilha_id": planilha_id,
+                        "nome_aba": nome_mes,
+                        "numero_linha": numero_linha,
+                        "data": linha[1],
+                        "tipo_movimento": linha[2],
+                        "categoria": linha[3],
+                        "forma_pagamento": linha[4],
+                        "descricao": linha[5],
+                        "valor": linha[6],
+                        "parcela_atual": linha[7] or 1,
+                        "total_parcelas": linha[8] or 1
+                    })
+
+    return transacoes_manuais
+
+
+def preencher_id_transacao_manual(
+    planilha_id,
+    nome_aba,
+    numero_linha,
+    id_transacao
+):
+    """
+    Preenche somente a célula da coluna A após a transação
+    ter sido registrada com sucesso no banco.
+    """
+
+    planilha = obter_planilha(planilha_id)
+    aba = planilha.worksheet(nome_aba)
+
+    aba.update_acell(
+        f"A{numero_linha}",
+        id_transacao
+    )
