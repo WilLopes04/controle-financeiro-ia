@@ -86,9 +86,7 @@ def atualizar_resumo_cartao(sheet_id, nome_aba, resumo):
 def atualizar_aba_completa(
     planilha_id,
     nome_aba,
-    dados,
-    resumo_categoria,
-    resumo_cartao
+    dados
 ):
     """
     Limpa a aba e escreve tabela e resumos usando uma atualização agrupada.
