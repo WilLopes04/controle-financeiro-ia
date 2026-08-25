@@ -135,33 +135,33 @@ def gerar_planilha(mes_especifico=None):
                     linha_google
                 )
 
-dados_google_emp = [
-    [
-        "Total Entradas:",
-        '=SUMIFS(G6:G;C6:C;"entrada";J6:J;"<>TRUE")'
-    ],
-    [
-        "Total Saídas:",
-        '=SUMIFS(G6:G;C6:C;"saida";J6:J;"<>TRUE")'
-    ],
-    ["Saldo:", "=B1-B2"],
-    [],
-    cabecalho
-] + dados_google_emp_linhas
+        dados_google_emp = [
+            [
+                "Total Entradas:",
+                '=SUMIFS(G6:G;C6:C;"entrada";J6:J;"<>TRUE")'
+            ],
+            [
+                "Total Saídas:",
+                '=SUMIFS(G6:G;C6:C;"saida";J6:J;"<>TRUE")'
+            ],
+            ["Saldo:", "=B1-B2"],
+            [],
+            cabecalho
+        ] + dados_google_emp_linhas
 
-dados_google_pes = [
-    [
-        "Total Entradas:",
-        '=SUMIFS(G6:G;C6:C;"entrada";J6:J;"<>TRUE")'
-    ],
-    [
-        "Total Saídas:",
-        '=SUMIFS(G6:G;C6:C;"saida";J6:J;"<>TRUE")'
-    ],
-    ["Saldo:", "=B1-B2"],
-    [],
-    cabecalho
-] + dados_google_pes_linhas
+        dados_google_pes = [
+            [
+                "Total Entradas:",
+                '=SUMIFS(G6:G;C6:C;"entrada";J6:J;"<>TRUE")'
+            ],
+            [
+                "Total Saídas:",
+                '=SUMIFS(G6:G;C6:C;"saida";J6:J;"<>TRUE")'
+            ],
+            ["Saldo:", "=B1-B2"],
+            [],
+            cabecalho
+        ] + dados_google_pes_linhas
 
         atualizar_aba_completa(
             sheet_empresa_id,
