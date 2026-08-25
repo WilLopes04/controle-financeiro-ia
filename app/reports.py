@@ -149,25 +149,33 @@ def gerar_planilha(mes_especifico=None):
                     resumo_cartao_pes[forma_pagamento] += valor
 
         dados_google_emp = [
-            ["Total Entradas:", entradas_emp],
-            ["Total Saídas:", saidas_emp],
-            ["Saldo:", entradas_emp - saidas_emp],
+            [
+                "Total Entradas:",
+                '=SUMIFS(G6:G,C6:C,"entrada",J6:J,"<>TRUE")'
+            ],
+            [
+                "Total Saídas:",
+                '=SUMIFS(G6:G,C6:C,"saida",J6:J,"<>TRUE")'
+            ],
+            ["Saldo:", "=B1-B2"],
             [],
             cabecalho
         ] + dados_google_emp_linhas
 
+        
         dados_google_pes = [
-            ["Total Entradas:", entradas_pes],
-            ["Total Saídas:", saidas_pes],
-            ["Saldo:", entradas_pes - saidas_pes],
+            [
+                "Total Entradas:",
+                '=SUMIFS(G6:G,C6:C,"entrada",J6:J,"<>TRUE")'
+            ],
+            [
+                "Total Saídas:",
+                '=SUMIFS(G6:G,C6:C,"saida",J6:J,"<>TRUE")'
+            ],
+            ["Saldo:", "=B1-B2"],
             [],
             cabecalho
         ] + dados_google_pes_linhas
-
-        resumo_categoria_emp_google = [
-            ["Resumo por Categoria"],
-            ["Categoria", "Total"]
-        ]
 
         for categoria, total in resumo_categoria_emp.items():
             resumo_categoria_emp_google.append(
