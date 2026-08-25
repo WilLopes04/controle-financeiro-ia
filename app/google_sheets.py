@@ -82,3 +82,33 @@ def atualizar_resumo_cartao(sheet_id, nome_aba, resumo):
     planilha = obter_planilha(sheet_id)
     aba = planilha.worksheet(nome_aba)
     aba.update("O2", resumo)
+    
+def atualizar_aba_completa(
+    planilha_id,
+    nome_aba,
+    dados,
+    resumo_categoria,
+    resumo_cartao
+):
+    """
+    Limpa a aba e escreve tabela e resumos usando uma atualização agrupada.
+    """
+    planilha = obter_planilha(planilha_id)
+    aba = planilha.worksheet(nome_aba)
+
+    aba.clear()
+
+    aba.batch_update([
+        {
+            "range": "A1",
+            "values": dados
+        },
+        {
+            "range": "L2",
+            "values": resumo_categoria
+        },
+        {
+            "range": "O2",
+            "values": resumo_cartao
+        }
+    ])
