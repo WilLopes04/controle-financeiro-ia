@@ -480,4 +480,19 @@ def obter_transacoes_com_id():
                     "excluir": excluir
                 })
 
+  def excluir_linha_planilha(
+    planilha_id,
+    nome_aba,
+    numero_linha
+):
+    """
+    Exclui uma linha específica da planilha.
+    Deve ser chamada somente depois da exclusão no banco.
+    """
+
+    planilha = obter_planilha(planilha_id)
+    aba = planilha.worksheet(nome_aba)
+
+    aba.delete_rows(numero_linha)  
+
     return transacoes
