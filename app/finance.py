@@ -8,7 +8,8 @@ from app.google_sheets import (
     adicionar_transacao_planilha,
     obter_transacoes_manuais,
     preencher_id_transacao_manual,
-    obter_transacoes_com_id
+    obter_transacoes_com_id,
+    excluir_linha_planilha
 )
 
 
@@ -624,6 +625,84 @@ def aplicar_edicoes_planilha():
         except Exception as erro:
             resultado["erros"].append(
                 f"{alteracao['referencia']}: {erro}"
+            )
+
+    return resultado
+
+def aplicar_exclusoes_planilha():
+    """
+    Exclui do Turso os registros marcados na coluna Excluir
+    e depois remove as respectivas linhas da planilha.
+    """
+
+    linhas = obter_transacoes_com_id()
+
+    marcadas = [
+        item
+        for item in linhas
+        if item["excluir"]
+    ]
+
+    # Dentro de cada aba, remove primeiro as linhas inferiores.
+    # Isso evita que a numeração das próximas linhas seja deslocada.
+    marcadas.sort(
+        key=lambda item: (
+            item["planilha_id"],
+            item["nome_aba"],
+            item["numero_linha"]
+        ),
+        reverse=True
+    )
+
+    resultado = {
+        "encontradas": len(marcadas),
+        "excluidas_banco": 0,
+        "removidas_planilha": 0,
+        "ja_ausentes_banco": 0,
+        "erros": []
+    }
+
+    for item in marcadas:
+        referencia = (
+            f"{item['nome_aba']}!"
+            f"A{item['numero_linha']}"
+        )
+
+        try:
+            id_transacao = int(
+                float(item["id"])
+            )
+
+            existente = db.execute("""
+                SELECT id
+                FROM transacoes
+                WHERE id = ?
+                LIMIT 1
+            """, [id_transacao]).rows
+
+            if existente:
+                db.execute("""
+                    DELETE FROM transacoes
+                    WHERE id = ?
+                """, [id_transacao])
+
+                resultado["excluidas_banco"] += 1
+            else:
+                # Permite concluir uma tentativa anterior caso
+                # o banco tenha sido atualizado, mas o Google falhado.
+                resultado["ja_ausentes_banco"] += 1
+
+            excluir_linha_planilha(
+                item["planilha_id"],
+                item["nome_aba"],
+                item["numero_linha"]
+            )
+
+            resultado["removidas_planilha"] += 1
+
+        except Exception as erro:
+            resultado["erros"].append(
+                f"{referencia}: {erro}"
             )
 
     return resultado
