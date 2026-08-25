@@ -1,4 +1,5 @@
 from app.reports import gerar_planilha
+from app.google_sheets import diagnosticar_alteracoes_planilhas
 from datetime import datetime
 from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse
@@ -149,9 +150,17 @@ def interpretar_comando(msg: str):
     low = txt.lower()
     if low in (
         "sincronizar planilha",
-        "sincronizar planilhas"
+        "sincronizar planilhas",
     ):
         return ("sincronizar_planilhas", {})
+        
+    if low in (
+        "sincronizar banco",
+        "verificar sincronizacao",
+        "verificar sincronização"
+    ):
+        return ("diagnosticar_sincronizacao_banco", {})
+
     
     # aprender: tecido = empresa / insumos
     if low.startswith("aprender:"):
@@ -474,6 +483,29 @@ async def receive_webhook(request: Request):
             if sugestao.get("categoria") and (params.get("categoria") in (None, "", "outros")):
                 params["categoria"] = sugestao["categoria"]
 
+        if acao == "diagnosticar_sincronizacao_banco":
+            diagnostico = diagnosticar_alteracoes_planilhas()
+
+            mensagem = (
+                "🔎 Diagnóstico da sincronização:\n"
+                f"• Linhas encontradas: "
+                f"{diagnostico['total_linhas']}\n"
+                f"• Novas linhas sem ID: "
+                f"{diagnostico['novas_sem_id']}\n"
+                f"• Linhas marcadas para exclusão: "
+                f"{diagnostico['marcadas_exclusao']}\n"
+                f"• Linhas existentes com ID: "
+                f"{diagnostico['existentes_com_id']}\n\n"
+                "Nenhuma alteração foi feita no banco."
+            )
+
+            enviar_whatsapp(
+                from_number,
+                mensagem
+            )
+
+            return {"status": "diagnostico_ok"}
+        
         # Executar
         if acao == "sincronizar_planilhas":
             gerar_planilha()
