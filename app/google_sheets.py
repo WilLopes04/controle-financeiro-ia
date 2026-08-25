@@ -498,4 +498,4 @@ def excluir_linha_planilha(
 
     aba.delete_rows(numero_linha)  
 
-    return transacoes
+    
