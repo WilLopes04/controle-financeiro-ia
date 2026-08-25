@@ -7,7 +7,8 @@ from app.reports import calcular_mes_fatura
 from app.google_sheets import (
     adicionar_transacao_planilha,
     obter_transacoes_manuais,
-    preencher_id_transacao_manual
+    preencher_id_transacao_manual,
+    obter_transacoes_com_id
 )
 
 
@@ -347,6 +348,208 @@ def sincronizar_novas_transacoes_planilha():
                 item["numero_linha"],
                 id_transacao
             )
+
+        except Exception as erro:
+            resultado["erros"].append(
+                f"{referencia}: {erro}"
+            )
+
+    return resultado
+
+def diagnosticar_edicoes_planilha():
+    """
+    Compara as linhas com ID das planilhas com o Turso.
+    Não altera nenhum dado.
+    """
+
+    linhas_planilha = obter_transacoes_com_id()
+
+    resultado = {
+        "verificadas": 0,
+        "alteradas": [],
+        "ids_ausentes": [],
+        "erros": []
+    }
+
+    for item in linhas_planilha:
+        referencia = (
+            f"{item['nome_aba']}!"
+            f"A{item['numero_linha']}"
+        )
+
+        # Exclusões serão tratadas em outra etapa.
+        if item["excluir"]:
+            continue
+
+        try:
+            id_transacao = int(
+                float(item["id"])
+            )
+
+            registro = db.execute("""
+                SELECT
+                    data,
+                    tipo_conta,
+                    tipo_movimento,
+                    categoria,
+                    forma_pagamento,
+                    descricao,
+                    valor,
+                    parcela_atual,
+                    total_parcelas
+                FROM transacoes
+                WHERE id = ?
+                LIMIT 1
+            """, [id_transacao]).rows
+
+            if not registro:
+                resultado["ids_ausentes"].append({
+                    "id": id_transacao,
+                    "referencia": referencia
+                })
+                continue
+
+            banco = registro[0]
+            resultado["verificadas"] += 1
+
+            texto_data = str(item["data"]).strip()
+
+            try:
+                numero_data = float(
+                    texto_data.replace(",", ".")
+                )
+
+                data_planilha = (
+                    datetime(1899, 12, 30)
+                    + timedelta(days=numero_data)
+                ).strftime("%Y-%m-%d")
+
+            except ValueError:
+                data_obj = None
+
+                for formato in (
+                    "%Y-%m-%d",
+                    "%d/%m/%Y"
+                ):
+                    try:
+                        data_obj = datetime.strptime(
+                            texto_data,
+                            formato
+                        )
+                        break
+                    except ValueError:
+                        continue
+
+                if data_obj is None:
+                    raise ValueError(
+                        f"data inválida: {texto_data}"
+                    )
+
+                data_planilha = data_obj.strftime(
+                    "%Y-%m-%d"
+                )
+
+            valor_original = item["valor"]
+
+            if isinstance(valor_original, (int, float)):
+                valor_planilha = float(valor_original)
+            else:
+                texto_valor = (
+                    str(valor_original)
+                    .strip()
+                    .replace("R$", "")
+                    .replace(" ", "")
+                )
+
+                if "," in texto_valor:
+                    texto_valor = (
+                        texto_valor
+                        .replace(".", "")
+                        .replace(",", ".")
+                    )
+
+                valor_planilha = float(texto_valor)
+
+            parcela_planilha = int(
+                float(
+                    str(item["parcela_atual"])
+                    .strip()
+                    .replace(",", ".")
+                )
+            )
+
+            total_parcelas_planilha = int(
+                float(
+                    str(item["total_parcelas"])
+                    .strip()
+                    .replace(",", ".")
+                )
+            )
+
+            valores_planilha = {
+                "data": data_planilha,
+                "tipo_conta": str(
+                    item["tipo_conta"]
+                ).strip().lower(),
+                "tipo_movimento": str(
+                    item["tipo_movimento"]
+                ).strip().lower().replace(
+                    "saída",
+                    "saida"
+                ),
+                "categoria": str(
+                    item["categoria"]
+                ).strip(),
+                "forma_pagamento": str(
+                    item["forma_pagamento"]
+                ).strip(),
+                "descricao": str(
+                    item["descricao"]
+                ).strip(),
+                "valor": valor_planilha,
+                "parcela_atual": parcela_planilha,
+                "total_parcelas": total_parcelas_planilha
+            }
+
+            valores_banco = {
+                "data": str(banco[0]),
+                "tipo_conta": str(banco[1]).strip().lower(),
+                "tipo_movimento": str(
+                    banco[2]
+                ).strip().lower(),
+                "categoria": str(banco[3]).strip(),
+                "forma_pagamento": str(banco[4]).strip(),
+                "descricao": str(banco[5]).strip(),
+                "valor": float(banco[6]),
+                "parcela_atual": int(banco[7]),
+                "total_parcelas": int(banco[8])
+            }
+
+            campos_alterados = []
+
+            for campo in valores_planilha:
+                if campo == "valor":
+                    diferente = (
+                        abs(
+                            valores_planilha[campo]
+                            - valores_banco[campo]
+                        ) > 0.001
+                    )
+                else:
+                    diferente = (
+                        valores_planilha[campo]
+                        != valores_banco[campo]
+                    )
+
+                if diferente:
+                    campos_alterados.append(campo)
+
+            if campos_alterados:
+                resultado["alteradas"].append({
+                    "id": id_transacao,
+                    "referencia": referencia,
+                    "campos": campos_alterados
+                })
 
         except Exception as erro:
             resultado["erros"].append(
