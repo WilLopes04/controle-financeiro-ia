@@ -498,7 +498,7 @@ def excluir_linha_planilha(
 
     aba.delete_rows(numero_linha)  
 
-    def configurar_checkboxes_excluir():
+def configurar_checkboxes_excluir():
     """
     Aplica caixas de seleção na coluna Excluir das
     planilhas pessoal e empresarial do cliente atual.
