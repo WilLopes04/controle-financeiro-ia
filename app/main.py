@@ -181,6 +181,12 @@ def interpretar_comando(msg: str):
         "aplicar edições"
     ):
         return ("aplicar_edicoes", {})
+        
+    if low in (
+        "confirmar exclusoes",
+        "confirmar exclusões"
+    ):
+        return ("aplicar_exclusoes", {})
     
     # aprender: tecido = empresa / insumos
     if low.startswith("aprender:"):
@@ -554,6 +560,36 @@ async def receive_webhook(request: Request):
             )
 
             return {"status": "edicoes_aplicadas"}
+
+        if acao == "aplicar_exclusoes":
+            resultado = aplicar_exclusoes_planilha()
+
+            mensagem = (
+                "🗑️ Exclusões processadas:\n"
+                f"• Linhas marcadas: "
+                f"{resultado['encontradas']}\n"
+                f"• Excluídas do banco: "
+                f"{resultado['excluidas_banco']}\n"
+                f"• Removidas da planilha: "
+                f"{resultado['removidas_planilha']}\n"
+                f"• Já ausentes no banco: "
+                f"{resultado['ja_ausentes_banco']}\n"
+                f"• Erros: "
+                f"{len(resultado['erros'])}"
+            )
+
+            if resultado["erros"]:
+                mensagem += (
+                    "\n\n⚠️ "
+                    + "\n".join(resultado["erros"][:3])
+                )
+
+            enviar_whatsapp(
+                from_number,
+                mensagem
+            )
+
+            return {"status": "exclusoes_processadas"}
         
         if acao == "diagnosticar_edicoes":
             resultado = diagnosticar_edicoes_planilha()
