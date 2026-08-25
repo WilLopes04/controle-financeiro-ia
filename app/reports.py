@@ -1,7 +1,7 @@
 import calendar
 from datetime import datetime
+
 from dateutil.relativedelta import relativedelta
-from collections import defaultdict
 
 from app.db import db
 from app.google_sheets import (
@@ -36,7 +36,10 @@ def calcular_mes_fatura(data_compra, nome_cartao):
         mes_fatura.month
     )[1]
 
-    dia_pagamento = min(dia_vencimento, ultimo_dia_mes)
+    dia_pagamento = min(
+        dia_vencimento,
+        ultimo_dia_mes
+    )
 
     return datetime(
         mes_fatura.year,
@@ -46,8 +49,15 @@ def calcular_mes_fatura(data_compra, nome_cartao):
 
 
 def gerar_planilha(mes_especifico=None):
-    sheet_empresa_id, sheet_pessoal_id = obter_ids_planilhas()
-    resultado = db.execute("SELECT * FROM transacoes")
+
+    sheet_empresa_id, sheet_pessoal_id = (
+        obter_ids_planilhas()
+    )
+
+    resultado = db.execute(
+        "SELECT * FROM transacoes"
+    )
+
     dados = resultado.rows
 
     meses = {
@@ -80,22 +90,14 @@ def gerar_planilha(mes_especifico=None):
 
     for num_mes, nome_mes in meses.items():
 
-        if mes_especifico and nome_mes != mes_especifico:
+        if (
+            mes_especifico
+            and nome_mes != mes_especifico
+        ):
             continue
 
         dados_google_emp_linhas = []
         dados_google_pes_linhas = []
-
-        entradas_emp = 0
-        saidas_emp = 0
-        entradas_pes = 0
-        saidas_pes = 0
-
-        resumo_categoria_emp = defaultdict(float)
-        resumo_categoria_pes = defaultdict(float)
-
-        resumo_cartao_emp = defaultdict(float)
-        resumo_cartao_pes = defaultdict(float)
 
         for linha in dados:
 
@@ -108,7 +110,7 @@ def gerar_planilha(mes_especifico=None):
                 continue
 
             linha_google = [
-                linha[0],   # ID da transação no Turso
+                linha[0],   # ID
                 linha[1],   # Data
                 linha[3],   # Tipo movimento
                 linha[4],   # Categoria
@@ -117,36 +119,21 @@ def gerar_planilha(mes_especifico=None):
                 linha[7],   # Valor
                 linha[8],   # Parcela atual
                 linha[9],   # Total de parcelas
-                False       # Coluna Excluir
+                False       # Excluir
             ]
 
-            tipo_conta = linha[2].lower()
-            tipo_movimento = linha[3].lower()
-            categoria = linha[4]
-            forma_pagamento = linha[5]
-            valor = float(linha[7])
+            tipo_conta = str(
+                linha[2]
+            ).lower()
 
             if tipo_conta == "empresa":
-
-                dados_google_emp_linhas.append(linha_google)
-
-                if tipo_movimento == "entrada":
-                    entradas_emp += valor
-                else:
-                    saidas_emp += valor
-                    resumo_categoria_emp[categoria] += valor
-                    resumo_cartao_emp[forma_pagamento] += valor
-
+                dados_google_emp_linhas.append(
+                    linha_google
+                )
             else:
-
-                dados_google_pes_linhas.append(linha_google)
-
-                if tipo_movimento == "entrada":
-                    entradas_pes += valor
-                else:
-                    saidas_pes += valor
-                    resumo_categoria_pes[categoria] += valor
-                    resumo_cartao_pes[forma_pagamento] += valor
+                dados_google_pes_linhas.append(
+                    linha_google
+                )
 
         dados_google_emp = [
             [
@@ -157,12 +144,14 @@ def gerar_planilha(mes_especifico=None):
                 "Total Saídas:",
                 '=SUMIFS(G6:G,C6:C,"saida",J6:J,"<>TRUE")'
             ],
-            ["Saldo:", "=B1-B2"],
+            [
+                "Saldo:",
+                "=B1-B2"
+            ],
             [],
             cabecalho
         ] + dados_google_emp_linhas
 
-        
         dados_google_pes = [
             [
                 "Total Entradas:",
@@ -172,45 +161,13 @@ def gerar_planilha(mes_especifico=None):
                 "Total Saídas:",
                 '=SUMIFS(G6:G,C6:C,"saida",J6:J,"<>TRUE")'
             ],
-            ["Saldo:", "=B1-B2"],
+            [
+                "Saldo:",
+                "=B1-B2"
+            ],
             [],
             cabecalho
         ] + dados_google_pes_linhas
-
-        for categoria, total in resumo_categoria_emp.items():
-            resumo_categoria_emp_google.append(
-                [categoria, total]
-            )
-
-        resumo_cartao_emp_google = [
-            ["Resumo por Cartão"],
-            ["Cartão", "Total Fatura"]
-        ]
-
-        for cartao, total in resumo_cartao_emp.items():
-            resumo_cartao_emp_google.append(
-                [cartao, total]
-            )
-
-        resumo_categoria_pes_google = [
-            ["Resumo por Categoria"],
-            ["Categoria", "Total"]
-        ]
-
-        for categoria, total in resumo_categoria_pes.items():
-            resumo_categoria_pes_google.append(
-                [categoria, total]
-            )
-
-        resumo_cartao_pes_google = [
-            ["Resumo por Cartão"],
-            ["Cartão", "Total Fatura"]
-        ]
-
-        for cartao, total in resumo_cartao_pes.items():
-            resumo_cartao_pes_google.append(
-                [cartao, total]
-            )
 
         atualizar_aba_completa(
             sheet_empresa_id,
