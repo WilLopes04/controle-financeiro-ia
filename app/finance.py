@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 import uuid
 
@@ -182,21 +182,34 @@ def sincronizar_novas_transacoes_planilha():
         )
 
         try:
-            texto_data = str(item["data"]).strip()
+            valor_data = item["data"]
+            texto_data = str(valor_data).strip()
             data_obj = None
 
-            for formato in (
-                "%Y-%m-%d",
-                "%d/%m/%Y"
-            ):
-                try:
-                    data_obj = datetime.strptime(
-                        texto_data,
-                        formato
-                    )
-                    break
-                except ValueError:
-                    continue
+            # O Google Sheets pode retornar datas como
+            # número serial, por exemplo 46259.
+            try:
+                numero_data = float(
+                    texto_data.replace(",", ".")
+                )
+
+                data_obj = (
+                    datetime(1899, 12, 30)
+                    + timedelta(days=numero_data)
+                )
+            except ValueError:
+                for formato in (
+                    "%Y-%m-%d",
+                    "%d/%m/%Y"
+                ):
+                    try:
+                        data_obj = datetime.strptime(
+                            texto_data,
+                            formato
+                        )
+                        break
+                    except ValueError:
+                        continue
 
             if data_obj is None:
                 raise ValueError(
