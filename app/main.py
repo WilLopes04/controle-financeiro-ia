@@ -1,7 +1,8 @@
 from app.reports import gerar_planilha
 from datetime import datetime
 from fastapi import FastAPI, Request
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, JSONResponse
+import hmac
 import os
 import requests
 import json
@@ -24,7 +25,11 @@ from app.queries import (
     fatura_cartao
 )
 
-from app.db import selecionar_cliente, db
+from app.db import (
+    selecionar_cliente,
+    selecionar_cliente_por_planilha,
+    db
+)
 
 def log(*args):
     """
@@ -338,7 +343,70 @@ def inferir_acao_se_faltar(ia: dict) -> str:
         return "saldo"
     return "ajuda"
 
+@app.post("/planilha/webhook")
+async def receber_edicao_planilha(request: Request):
 
+    try:
+        dados = await request.json()
+
+        planilha_id = str(
+            dados.get("planilha_id", "")
+        ).strip()
+
+        cliente, tipo_conta = selecionar_cliente_por_planilha(
+            planilha_id
+        )
+
+        if not cliente:
+            return JSONResponse(
+                {"erro": "Planilha não cadastrada."},
+                status_code=404
+            )
+
+        token_recebido = request.headers.get(
+            "X-Planilha-Token",
+            ""
+        ).strip()
+
+        token_esperado = str(
+            cliente.get("sheet_token") or ""
+        ).strip()
+
+        if (
+            not token_recebido
+            or not token_esperado
+            or not hmac.compare_digest(
+                token_recebido,
+                token_esperado
+            )
+        ):
+            return JSONResponse(
+                {"erro": "Token inválido."},
+                status_code=401
+            )
+
+        log(
+            "Planilha autenticada:",
+            cliente["nome"],
+            tipo_conta
+        )
+
+        return {
+            "status": "ok",
+            "cliente": cliente["nome"],
+            "tipo_conta": tipo_conta
+        }
+
+    except Exception as erro:
+        log(
+            "Erro no webhook da planilha:",
+            str(erro)
+        )
+
+        return JSONResponse(
+            {"erro": "Falha ao processar a planilha."},
+            status_code=500
+        )
 
 # WEBHOOK WHATSAPP
 
