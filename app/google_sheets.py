@@ -480,6 +480,9 @@ def obter_transacoes_com_id():
                     "excluir": excluir
                 })
 
+    return transacoes
+
+
 def excluir_linha_planilha(
     planilha_id,
     nome_aba,
