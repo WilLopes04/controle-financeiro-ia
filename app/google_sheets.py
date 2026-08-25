@@ -386,3 +386,98 @@ def preencher_id_transacao_manual(
         f"A{numero_linha}",
         id_transacao
     )
+
+
+def obter_transacoes_com_id():
+    """
+    Retorna as linhas das planilhas que já possuem ID.
+    Não altera o banco nem a planilha.
+    """
+
+    meses = [
+        "JANEIRO",
+        "FEVEREIRO",
+        "MARÇO",
+        "ABRIL",
+        "MAIO",
+        "JUNHO",
+        "JULHO",
+        "AGOSTO",
+        "SETEMBRO",
+        "OUTUBRO",
+        "NOVEMBRO",
+        "DEZEMBRO"
+    ]
+
+    sheet_empresa_id, sheet_pessoal_id = (
+        obter_ids_planilhas()
+    )
+
+    planilhas = [
+        ("empresa", sheet_empresa_id),
+        ("pessoal", sheet_pessoal_id)
+    ]
+
+    transacoes = []
+
+    for tipo_conta, planilha_id in planilhas:
+        planilha = obter_planilha(planilha_id)
+
+        intervalos = [
+            f"{mes}!A6:J"
+            for mes in meses
+        ]
+
+        resposta = planilha.values_batch_get(
+            intervalos,
+            params={
+                "valueRenderOption": "UNFORMATTED_VALUE"
+            }
+        )
+
+        blocos = resposta.get("valueRanges", [])
+
+        for nome_mes, bloco in zip(meses, blocos):
+            linhas = bloco.get("values", [])
+
+            for numero_linha, linha in enumerate(
+                linhas,
+                start=6
+            ):
+                linha = list(linha) + [""] * (
+                    10 - len(linha)
+                )
+
+                id_transacao = str(linha[0]).strip()
+
+                if not id_transacao:
+                    continue
+
+                excluir = (
+                    str(linha[9]).strip().lower()
+                    in {
+                        "true",
+                        "verdadeiro",
+                        "sim",
+                        "1"
+                    }
+                )
+
+                transacoes.append({
+                    "id": id_transacao,
+                    "tipo_conta": tipo_conta,
+                    "planilha_id": planilha_id,
+                    "nome_aba": nome_mes,
+                    "numero_linha": numero_linha,
+                    "data": linha[1],
+                    "tipo_movimento": linha[2],
+                    "categoria": linha[3],
+                    "forma_pagamento": linha[4],
+                    "descricao": linha[5],
+                    "valor": linha[6],
+                    "parcela_atual": linha[7],
+                    "total_parcelas": linha[8],
+                    "excluir": excluir
+                })
+
+    return transacoes
