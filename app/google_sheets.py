@@ -226,7 +226,7 @@ def diagnosticar_alteracoes_planilhas():
         resposta = planilha.values_batch_get(
             intervalos,
             params={
-                "valueRenderOption": "UNFORMATTED_VALUE"
+                "valueRenderOption": "FORMATTED_VALUE"
             }
         )
 
