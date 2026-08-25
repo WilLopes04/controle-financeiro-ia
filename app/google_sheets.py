@@ -83,14 +83,7 @@ def atualizar_resumo_cartao(sheet_id, nome_aba, resumo):
     aba = planilha.worksheet(nome_aba)
     aba.update("O2", resumo)
     
-def atualizar_aba_completa(
-    planilha_id,
-    nome_aba,
-    dados
-):
-    """
-    Limpa a aba e escreve tabela e resumos usando uma atualização agrupada.
-    """
+def atualizar_aba_completa(planilha_id, nome_aba, dados):
     planilha = obter_planilha(planilha_id)
     aba = planilha.worksheet(nome_aba)
 
@@ -107,9 +100,12 @@ def atualizar_aba_completa(
                 "values": [
                     ["Resumo por Categoria"],
                     [
-                        '=IFERROR(QUERY(A6:J,"select D, sum(G) '
-                        "where C = 'saida' and (J = FALSE or J is null) "
-                        "group by D label D 'Categoria', sum(G) 'Total'\",0),\"\")"
+                        '=IFERROR(QUERY(A6:J;'
+                        '"select D, sum(G) '
+                        "where C = 'saida' and (J = false or J is null) "
+                        "group by D "
+                        "label D 'Categoria', sum(G) 'Total'\";"
+                        '0);"")'
                     ]
                 ]
             },
@@ -118,9 +114,12 @@ def atualizar_aba_completa(
                 "values": [
                     ["Resumo por Pagamento"],
                     [
-                        '=IFERROR(QUERY(A6:J,"select E, sum(G) '
-                        "where C = 'saida' and (J = FALSE or J is null) "
-                        "group by E label E 'Pagamento', sum(G) 'Total'\",0),\"\")"
+                        '=IFERROR(QUERY(A6:J;'
+                        '"select E, sum(G) '
+                        "where C = 'saida' and (J = false or J is null) "
+                        "group by E "
+                        "label E 'Pagamento', sum(G) 'Total'\";"
+                        '0);"")'
                     ]
                 ]
             }
