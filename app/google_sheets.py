@@ -171,11 +171,18 @@ def adicionar_transacao_planilha(
         meses[data_transacao.month]
     )
 
-    aba.append_row(
-        linha_transacao,
-        value_input_option="USER_ENTERED",
-        insert_data_option="INSERT_ROWS",
-        table_range="A5:J"
+    # Procura a primeira linha livre pela coluna ID.
+    ids_existentes = aba.get(
+        "A6:A",
+        value_render_option="UNFORMATTED_VALUE"
+    )
+
+    numero_linha = 6 + len(ids_existentes)
+
+    aba.update(
+        range_name=f"A{numero_linha}:I{numero_linha}",
+        values=[linha_transacao[:9]],
+        value_input_option="USER_ENTERED"
     )
 
 def diagnosticar_alteracoes_planilhas():
